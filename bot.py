@@ -4,7 +4,8 @@ import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-from neural_writer import neural_ai
+from internet_ai import InternetWriterAI
+openrouter_ai = InternetWriterAI()
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
