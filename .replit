@@ -1,2 +1,3 @@
-run = "pip install -r requirements.txt && python bot.py"
+run = "python bot.py"
 language = "python3"
+entrypoint = "bot.py"
