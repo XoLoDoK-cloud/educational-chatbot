@@ -4,10 +4,10 @@ import asyncio
 import logging
 import os
 from aiogram import Bot, Dispatcher, types
+from aiogram import F
 from aiogram.filters import Command
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-from internet_ai import InternetWriterAI
-openrouter_ai = InternetWriterAI()
+from aiogram.types import Message
+import asyncio
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
