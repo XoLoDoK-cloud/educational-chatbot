@@ -213,3 +213,8 @@ def run():
 def keep_alive():
     t = Thread(target=run)
     t.start()
+if __name__ == "__main__":
+    print("🤖 Starting Literary Companion Bot...")
+    # Убедитесь, что у вас есть функция main() или аналог
+    import asyncio
+    asyncio.run(main())  # или как у вас называется функция запуска
