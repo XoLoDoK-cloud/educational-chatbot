@@ -1,13 +1,17 @@
 import asyncio
 import logging
+import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 
-# Настройка логирования
 logging.basicConfig(level=logging.INFO)
 
-# 🔐 ПРЯМОЕ УКАЗАНИЕ ТОКЕНА ДЛЯ ТЕСТА
-BOT_TOKEN = "8504839792:AAHNDV43QLJxixKWxB4-XaF6ZrcPMSKtw00"
+# 🔐 БЕЗОПАСНОЕ ПОЛУЧЕНИЕ ТОКЕНА ИЗ ПЕРЕМЕННЫХ ОКРУЖЕНИЯ
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+
+if not BOT_TOKEN:
+    logging.error("❌ BOT_TOKEN не найден! Добавьте его в Secrets")
+    exit(1)
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
@@ -42,18 +46,6 @@ async def show_writers(message: types.Message):
     """
     await message.answer(writers_list)
 
-@dp.message(Command("help"))
-async def help_command(message: types.Message):
-    help_text = """
-ℹ️ Помощь по использованию бота:
-
-/writers - показать список писателей
-/start - начать работу с ботом
-
-Просто напишите имя писателя (например "Пушкин") чтобы начать беседу!
-    """
-    await message.answer(help_text)
-
 @dp.message()
 async def handle_message(message: types.Message):
     text = message.text.lower()
@@ -64,10 +56,6 @@ async def handle_message(message: types.Message):
         response = "🎭 Вы выбрали Фёдора Михайловича Достоевского!\n\n«Здравствуйте... Что вас тревожит?»"
     elif "толстой" in text:
         response = "🎭 Вы выбрали Льва Николаевича Толстого!\n\n«Здравствуйте, друг мой. Давайте поговорим о важном.»"
-    elif "чехов" in text:
-        response = "🎭 Вы выбрали Антона Павловича Чехова!\n\n«Здравствуйте! О чём поговорим?»"
-    elif "гоголь" in text:
-        response = "🎭 Вы выбрали Николая Васильевича Гоголя!\n\n«А, здравствуйте! О чём изволите беседовать?»"
     else:
         response = "Напишите /writers чтобы увидеть список доступных писателей"
     
