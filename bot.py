@@ -163,22 +163,32 @@ async def handle_message(message: types.Message):
     if user_id in user_sessions and user_sessions[user_id]:
         writer = user_sessions[user_id]
         
+        print(f"🔍 Шаг 1: Загрузка данных автора '{writer}'...")
+        
         # Показываем статус "печатает"
         await message.bot.send_chat_action(message.chat.id, "typing")
         
         try:
             # Загружаем данные автора
             author_file = f"writers/{writer}.json"
+            print(f"📁 Проверяем файл: {author_file}")
+            print(f"📁 Файл существует: {os.path.exists(author_file)}")
+            
+            # 🔥 ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА - список всех файлов в папке
+            print(f"📂 Содержимое папки writers/: {os.listdir('writers')}")
+            
             if os.path.exists(author_file):
                 with open(author_file, 'r', encoding='utf-8') as f:
                     author_data = json.load(f)
                 
-                print(f"🎭 Генерация ответа в стиле {author_data['name']}...")
+                print(f"✅ Данные автора загружены: {author_data['name']}")
+                print(f"🔍 Шаг 2: Вызов нейросети...")
                 
                 # Генерируем ответ через нейросеть
                 ai_response = await generate_literary_response(text, author_data)
                 
-                print(f"📝 Ответ сгенерирован: {ai_response[:100]}...")
+                print(f"✅ Ответ сгенерирован!")
+                print(f"📝 Текст ответа: {ai_response[:200]}...")
                 
                 # Отправляем сгенерированный ответ
                 writer_names = {
@@ -186,19 +196,28 @@ async def handle_message(message: types.Message):
                     "достоевский": "Достоевский",
                     "толстой": "Толстой", 
                     "чехов": "Чехов",
-                    "gogol": "Гоголь"
+                    "гоголь": "Гоголь"
                 }
                 
+                print(f"🔍 Шаг 3: Отправка сообщения...")
                 await message.answer(
                     f"*{writer_names[writer]}:* {ai_response}",
                     parse_mode="Markdown"
                 )
+                print(f"✅ Сообщение отправлено!")
+                
             else:
+                print(f"❌ Файл автора не найден: {author_file}")
+                # 🔥 Показываем какие файлы вообще есть
+                all_files = os.listdir('writers')
+                print(f"📂 Доступные файлы: {all_files}")
                 await message.answer("❌ Файл автора не найден")
                 
         except Exception as e:
-            print(f"💥 Ошибка: {e}")
-            await message.answer("⚠️ Произошла ошибка при генерации ответа")
+            print(f"💥 КРИТИЧЕСКАЯ ОШИБКА: {e}")
+            import traceback
+            print(f"📋 Полный трейсбэк: {traceback.format_exc()}")
+            await message.answer(f"⚠️ Произошла ошибка: {str(e)}")
         
         return
     
@@ -232,30 +251,18 @@ async def handle_message(message: types.Message):
     )
 
 async def main():
-    # РАДИКАЛЬНЫЙ СБРОС
-    from aiogram import Bot
-    from aiogram.client.session.aiohttp import AiohttpSession
-    
-    # Создаем новую сессию
-    session = AiohttpSession()
-    temp_bot = Bot(token=BOT_TOKEN, session=session)
-    
-    try:
-        # Сбрасываем ВСЁ
-        await temp_bot.delete_webhook(drop_pending_updates=True)
-        print("✅ Полный сброс выполнен!")
-        await session.close()
-    except Exception as e:
-        print(f"⚠️ Ошибка сброса: {e}")
-    
-    # Ждем 10 секунд для гарантии
-    await asyncio.sleep(10)
+    # Сбрасываем все предыдущие подключения
+    await bot.delete_webhook(drop_pending_updates=True)
+    print("🔄 Сброс предыдущих подключения...")
     
     # Запускаем keep-alive
     keep_alive()
     
+    # Запускаем бота
     print("🧠 Литературная нейросеть запущена!")
     print("🎭 Готова генерировать ответы в стиле великих писателей!")
     
-    # Запускаем основной бот
     await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
