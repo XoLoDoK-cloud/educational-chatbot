@@ -1,23 +1,17 @@
 import logging
-from aiogram.types import (
-    ReplyKeyboardMarkup, 
-    KeyboardButton, 
-    ReplyKeyboardRemove,
-    InlineKeyboardMarkup,
-    InlineKeyboardButton
-)
+import asyncio
+import json
+import os
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, StateFilter
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-import asyncio
-import json
-import os
+from aiogram.fsm.storage.memory import MemoryStorage
 from config import BOT_TOKEN
 from ai_openrouter import generate_literary_response
 
-# Настройка логирования
+# Теперь эта строка будет работать
 logging.basicConfig(level=logging.INFO)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
