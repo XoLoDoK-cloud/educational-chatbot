@@ -1,3 +1,9 @@
+async def main():
+    # Останавливаем любые предыдущие вебхуки
+    await bot.delete_webhook(drop_pending_updates=True)
+    
+    # Запускаем polling
+    await dp.start_polling(bot)
 import logging
 import asyncio
 import json
