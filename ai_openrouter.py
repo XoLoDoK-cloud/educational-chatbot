@@ -17,11 +17,11 @@ class OpenRouterAI:
             "messages": [
                 {
                     "role": "system", 
-                    "text": f"Ты - {writer}. Отвечай коротко в его стиле."
+                    "content": f"Ты - {writer}. Отвечай коротко в его стиле."
                 },
                 {
                     "role": "user",
-                    "text": user_message
+                    "content": user_message
                 }
             ],
             "max_tokens": 100,
