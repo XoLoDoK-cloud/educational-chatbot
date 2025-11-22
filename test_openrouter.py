@@ -35,3 +35,6 @@ async def test_openrouter():
                     
     except Exception as e:
         print(f"❌ Ошибка соединения: {e}")
+
+# Запуск теста
+asyncio.run(test_openrouter())
