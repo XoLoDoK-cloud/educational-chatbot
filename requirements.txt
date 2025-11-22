@@ -4,3 +4,5 @@ aiohttp==3.12.15
 flask==2.3.3
 beautifulsoup4
 aiogram
+aiogram
+python-dotenv
