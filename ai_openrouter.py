@@ -17,6 +17,14 @@ async def generate_literary_response(message, author_data):
         return response
     except Exception as e:
         return f"Извините, произошла ошибка: {str(e)}"
+
+    async def generate_literary_response(prompt, author_style):
+    """
+    Генерирует литературный ответ в стиле автора
+    """
+    # Ваш существующий код генерации ответа
+    response = await generate_response(prompt, author_style)  # или как у вас называется функция
+    return response
     
     def _get_mega_response(self, writer, user_message):
         """МЕГА-КАЧЕСТВЕННЫЕ ОТВЕТЫ С ОГРОМНЫМИ ТЕКСТАМИ"""
