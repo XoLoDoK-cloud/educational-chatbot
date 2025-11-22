@@ -8,10 +8,15 @@ class MegaAI:
         self.api_key = os.getenv("OPENROUTER_API_KEY")
         self.url = "https://openrouter.ai/api/v1/chat/completions"
         
-    async def generate_response(self, writer, user_message):
-        """МЕГА-НАДЕЖНЫЙ МЕТОД С ОГРОМНЫМИ ТЕКСТАМИ"""
-        # ВСЕГДА используем запасные ответы - они лучше и надежнее
-        return self._get_mega_response(writer, user_message)
+    # Добавьте эту функцию если её нет
+async def generate_literary_response(message, author_data):
+    """Генерирует ответ в стиле автора"""
+    try:
+        # Используйте вашу существующую функцию
+        response = await generate_response(message, author_data)
+        return response
+    except Exception as e:
+        return f"Извините, произошла ошибка: {str(e)}"
     
     def _get_mega_response(self, writer, user_message):
         """МЕГА-КАЧЕСТВЕННЫЕ ОТВЕТЫ С ОГРОМНЫМИ ТЕКСТАМИ"""
