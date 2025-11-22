@@ -1,13 +1,20 @@
-from keep_alive import keep_alive
-keep_alive()
+from aiogram.types import (
+    ReplyKeyboardMarkup, 
+    KeyboardButton, 
+    ReplyKeyboardRemove,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton
+)
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.filters import Command, StateFilter
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 import asyncio
-import logging
+import json
 import os
-from aiogram import Bot, Dispatcher, types
-from aiogram import F
-from aiogram.filters import Command
-from aiogram.types import Message
-import asyncio
+from config import BOT_TOKEN
+from ai_openrouter import generate_literary_response
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
