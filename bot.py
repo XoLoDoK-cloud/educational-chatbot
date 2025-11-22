@@ -232,18 +232,30 @@ async def handle_message(message: types.Message):
     )
 
 async def main():
-    # Сбрасываем все предыдущие подключения
-    await bot.delete_webhook(drop_pending_updates=True)
-    print("🔄 Сброс предыдущих подключения...")
+    # РАДИКАЛЬНЫЙ СБРОС
+    from aiogram import Bot
+    from aiogram.client.session.aiohttp import AiohttpSession
+    
+    # Создаем новую сессию
+    session = AiohttpSession()
+    temp_bot = Bot(token=BOT_TOKEN, session=session)
+    
+    try:
+        # Сбрасываем ВСЁ
+        await temp_bot.delete_webhook(drop_pending_updates=True)
+        print("✅ Полный сброс выполнен!")
+        await session.close()
+    except Exception as e:
+        print(f"⚠️ Ошибка сброса: {e}")
+    
+    # Ждем 10 секунд для гарантии
+    await asyncio.sleep(10)
     
     # Запускаем keep-alive
     keep_alive()
     
-    # Запускаем бота
     print("🧠 Литературная нейросеть запущена!")
     print("🎭 Готова генерировать ответы в стиле великих писателей!")
     
+    # Запускаем основной бот
     await dp.start_polling(bot)
-
-if __name__ == "__main__":
-    asyncio.run(main())
