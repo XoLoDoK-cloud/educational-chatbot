@@ -1,1 +1,1 @@
-# educational-chatbot
+# literary-chatbot
