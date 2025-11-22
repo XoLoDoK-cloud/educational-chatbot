@@ -1,5 +1,6 @@
 import os
 import aiohttp
+import json
 
 class OpenRouterAI:
     def __init__(self):
@@ -10,27 +11,26 @@ class OpenRouterAI:
         if not self.api_key:
             return "🎭 Настройки ИИ не завершены."
         
-        context = self._get_writer_context(writer)
-        
+        # Простой промпт
         prompt = {
-            "model": "google/gemma-7b-it:free",
+            "model": "meta-llama/llama-3.1-8b-instruct:free",
             "messages": [
                 {
-                    "role": "system",
-                    "text": f"Ты - {writer}. {context} Отвечай только в стиле этого писателя."
+                    "role": "system", 
+                    "text": f"Ты - {writer}. Отвечай коротко в его стиле."
                 },
                 {
                     "role": "user",
                     "text": user_message
                 }
             ],
-            "max_tokens": 150
+            "max_tokens": 100,
+            "temperature": 0.7
         }
         
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "HTTP-Referer": "https://t.me/literarybot",
-            "X-Title": "Literary Bot"
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}"
         }
         
         try:
@@ -39,18 +39,9 @@ class OpenRouterAI:
                     if response.status == 200:
                         result = await response.json()
                         return result['choices'][0]['message']['content']
-                    return f"🎭 {writer.title()}: Не могу сейчас ответить."
+                    else:
+                        return f"🎭 {writer.title()}: Извините, сервис временно недоступен."
         except:
-            return f"🎭 {writer.title()}: Продолжим беседу позже."
-
-    def _get_writer_context(self, writer):
-        contexts = {
-            "пушкин": "Ты Пушкин - говоришь романтично и элегантно",
-            "достоевский": "Ты Достоевский - глубокий философ", 
-            "толстой": "Ты Толстой - мудрый и простой",
-            "чехов": "Ты Чехов - ироничный и лаконичный",
-            "гоголь": "Ты Гоголь - мистический и с юмором"
-        }
-        return contexts.get(writer, "Русский писатель")
+            return f"🎭 {writer.title()}: Не могу подключиться к ИИ."
 
 openrouter_ai = OpenRouterAI()
