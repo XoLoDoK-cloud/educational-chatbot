@@ -11,6 +11,9 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from config import BOT_TOKEN
 from ai_openrouter import generate_literary_response
 
+# Теперь это будет работать
+logging.basicConfig(level=logging.INFO)
+
 # Теперь эта строка будет работать
 logging.basicConfig(level=logging.INFO)
 
