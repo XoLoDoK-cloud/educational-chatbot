@@ -1,13 +1,3 @@
-async def main():
-    # Сбрасываем все предыдущие подключения
-    await bot.delete_webhook(drop_pending_updates=True)
-    print("🔄 Сброс предыдущих подключения...")
-    
-    # Запускаем бота
-    print("🧠 Литературная нейросеть запущена!")
-    print("🎭 Готова генерировать ответы в стиле великих писателей!")
-    
-    await dp.start_polling(bot)
 import logging
 import asyncio
 import json
@@ -20,16 +10,29 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from config import BOT_TOKEN
 from ai_openrouter import generate_literary_response
+from flask import Flask
+from threading import Thread
 
-# Теперь это будет работать
+# Настройка логирования
 logging.basicConfig(level=logging.INFO)
 
-# Теперь эта строка будет работать
-logging.basicConfig(level=logging.INFO)
+# Flask для keep-alive
+app = Flask('')
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+@app.route('/')
+def home():
+    return "Bot is alive!"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
+
+# Инициализация бота
 bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
+dp = Dispatcher(storage=MemoryStorage())
 
 # Храним выбор писателя для каждого пользователя
 user_sessions = {}
@@ -148,6 +151,10 @@ async def handle_message(message: types.Message):
     user_id = message.from_user.id
     text = message.text
     
+    print(f"🎯 Получено сообщение: '{text}'")
+    print(f"👤 Пользователь: {user_id}")
+    print(f"📊 Текущая сессия: {user_sessions.get(user_id)}")
+    
     # Игнорируем служебные кнопки
     if text in ["📚 Выбрать писателя", "🔄 Сменить писателя", "🌟 Рекомендации", "💫 Случайный писатель", "⬅️ Назад"]:
         return
@@ -159,22 +166,40 @@ async def handle_message(message: types.Message):
         # Показываем статус "печатает"
         await message.bot.send_chat_action(message.chat.id, "typing")
         
-        # 🔥 НЕЙРОСЕТЬ ГЕНЕРИРУЕТ ОТВЕТ НА ЛЮБОЙ ВОПРОС
-        ai_response = neural_ai.generate_response(writer, text)
+        try:
+            # Загружаем данные автора
+            author_file = f"writers/{writer}.json"
+            if os.path.exists(author_file):
+                with open(author_file, 'r', encoding='utf-8') as f:
+                    author_data = json.load(f)
+                
+                print(f"🎭 Генерация ответа в стиле {author_data['name']}...")
+                
+                # Генерируем ответ через нейросеть
+                ai_response = await generate_literary_response(text, author_data)
+                
+                print(f"📝 Ответ сгенерирован: {ai_response[:100]}...")
+                
+                # Отправляем сгенерированный ответ
+                writer_names = {
+                    "пушкин": "Пушкин",
+                    "достоевский": "Достоевский",
+                    "толстой": "Толстой", 
+                    "чехов": "Чехов",
+                    "gogol": "Гоголь"
+                }
+                
+                await message.answer(
+                    f"*{writer_names[writer]}:* {ai_response}",
+                    parse_mode="Markdown"
+                )
+            else:
+                await message.answer("❌ Файл автора не найден")
+                
+        except Exception as e:
+            print(f"💥 Ошибка: {e}")
+            await message.answer("⚠️ Произошла ошибка при генерации ответа")
         
-        # Отправляем сгенерированный ответ
-        writer_names = {
-            "пушкин": "Пушкин",
-            "достоевский": "Достоевский",
-            "толстой": "Толстой", 
-            "чехов": "Чехов",
-            "гоголь": "Гоголь"
-        }
-        
-        await message.answer(
-            f"*{writer_names[writer]}:* {ai_response}",
-            parse_mode="Markdown"
-        )
         return
     
     # Выбор писателя по тексту
@@ -207,29 +232,18 @@ async def handle_message(message: types.Message):
     )
 
 async def main():
+    # Сбрасываем все предыдущие подключения
+    await bot.delete_webhook(drop_pending_updates=True)
+    print("🔄 Сброс предыдущих подключения...")
+    
+    # Запускаем keep-alive
+    keep_alive()
+    
+    # Запускаем бота
     print("🧠 Литературная нейросеть запущена!")
     print("🎭 Готова генерировать ответы в стиле великих писателей!")
+    
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
     asyncio.run(main())
-from flask import Flask
-from threading import Thread
-
-app = Flask('')
-
-@app.route('/')
-def home():
-    return "Bot is alive!"
-
-def run():
-    app.run(host='0.0.0.0', port=8080)
-
-def keep_alive():
-    t = Thread(target=run)
-    t.start()
-if __name__ == "__main__":
-    print("🤖 Starting Literary Companion Bot...")
-    # Убедитесь, что у вас есть функция main() или аналог
-    import asyncio
-    asyncio.run(main())  # или как у вас называется функция запуска
