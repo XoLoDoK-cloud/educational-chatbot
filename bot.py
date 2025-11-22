@@ -1,19 +1,13 @@
 import asyncio
 import logging
-import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 
-# Получаем токен из переменных окружения
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-
-if not BOT_TOKEN:
-    logging.error("❌ BOT_TOKEN не найден!")
-    # Для теста можно использовать прямой токен (но только для теста!)
-    BOT_TOKEN = "8504839792:AAHNDV43QLJxixKWxB4-XaF6ZrcPMSKtw00"
+# 🔐 ПРЯМОЕ УКАЗАНИЕ ТОКЕНА ДЛЯ ТЕСТА
+BOT_TOKEN = "8504839792:AAHNDV43QLJxixKWxB4-XaF6ZrcPMSKtw00"
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
