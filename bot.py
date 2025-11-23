@@ -9,8 +9,6 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from config import BOT_TOKEN
 from ai_openrouter import generate_literary_response
 from internet_search import internet_searcher
-from flask import Flask
-from threading import Thread
 import sys
 
 # Настройка логирования
@@ -25,20 +23,6 @@ if BOT_TOKEN:
     print(f"🔑 Токен: {BOT_TOKEN[:10]}...")
 else:
     print("⚠️ ОШИБКА: BOT_TOKEN не установлен!")
-
-# Flask для keep-alive
-app = Flask('')
-
-@app.route('/')
-def home():
-    return "🤖 Literary Bot is ALIVE!"
-
-def run():
-    app.run(host='0.0.0.0', port=8080)
-
-def keep_alive():
-    t = Thread(target=run, daemon=True)
-    t.start()
 
 # Инициализация бота
 try:
@@ -228,42 +212,23 @@ async def handle_message(message: types.Message):
     try:
         logger.info(f"🧠 Генерация ответа в стиле {author_data['name']}")
         
-        # Генерируем ответ через нейросеть
-        ai_response = await generate_literary_response(text, author_data)
+        # Проверяем, нужен ли интернет-поиск (для фактологических вопросов)
+        should_search = internet_searcher.should_search_internet("", text)
+        
+        if should_search:
+            logger.info(f"🔍 Фактологический вопрос обнаружен, используется модель с доступом к интернету")
+            # Передаем флаг, что нужен интернет-поиск
+            internet_context = "USE_INTERNET_SEARCH"
+        else:
+            internet_context = None
+        
+        # Генерируем ответ через нейросеть (с интернетом если нужно)
+        ai_response = await generate_literary_response(text, author_data, internet_context)
         
         if not ai_response or len(ai_response.strip()) == 0:
             ai_response = "Извините, не удалось сгенерировать ответ. Попробуйте еще раз."
         
         logger.info(f"✅ Ответ сгенерирован: {ai_response[:100]}...")
-        
-        # Проверяем, нужен ли интернет-поиск
-        should_search = internet_searcher.should_search_internet(ai_response, text)
-        logger.info(f"📊 Проверка интернет-поиска: {should_search} (вопрос: '{text[:50]}...')")
-        
-        if should_search:
-            logger.info(f"🔍 Запускаю интернет-поиск для: {text}")
-            await message.bot.send_chat_action(message.chat.id, "typing")
-            
-            # Ищем в интернете с общим таймаутом
-            try:
-                search_results = await asyncio.wait_for(
-                    internet_searcher.search_online(text, max_results=3),
-                    timeout=20.0  # Максимум 20 секунд на весь поиск
-                )
-                
-                if search_results:
-                    # Генерируем ответ на основе найденной информации
-                    ai_response = internet_searcher.generate_internet_answer(
-                        text, 
-                        search_results, 
-                        writer
-                    )
-                    logger.info(f"✅ Ответ сгенерирован с интернет-поиском")
-                else:
-                    logger.info(f"⚠️ Интернет-поиск не вернул результатов, отправляю базовый ответ")
-            except asyncio.TimeoutError:
-                logger.warning(f"⏰ Таймаут интернет-поиска, отправляю базовый ответ")
-                # Отправляем базовый ответ, если поиск слишком долгий
         # Отправляем ответ
         writer_names = {
             "pushkin": "Пушкин",
@@ -317,10 +282,7 @@ async def main():
         print("⏳ Шаг 2: Ожидание 5 секунд...")
         await asyncio.sleep(5)
         
-        print("🔧 Шаг 3: Запуск keep-alive...")
-        keep_alive()
-        
-        print("🧠 Шаг 4: Запуск polling...")
+        print("🧠 Шаг 3: Запуск polling...")
         logger.info("🧠 Запуск литературной нейросети...")
         print("🎭 Бот готов к работе! Найдите нового бота в Telegram")
         
@@ -333,6 +295,9 @@ async def main():
     finally:
         print("🔧 Завершение работы...")
         await bot.session.close()
+
+if __name__ == '__main__':
+    asyncio.run(main())
 
 if __name__ == '__main__':
     asyncio.run(main())
