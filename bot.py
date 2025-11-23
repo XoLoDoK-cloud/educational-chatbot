@@ -8,6 +8,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 from config import BOT_TOKEN
 from ai_openrouter import generate_literary_response
+from internet_search import internet_searcher
 from flask import Flask
 from threading import Thread
 import sys
@@ -232,6 +233,24 @@ async def handle_message(message: types.Message):
         
         logger.info(f"✅ Ответ сгенерирован: {ai_response[:100]}...")
         
+        # Проверяем, нужен ли интернет-поиск
+        if internet_searcher.should_search_internet(ai_response, text):
+            logger.info(f"🔍 Запускаю интернет-поиск для: {text}")
+            await message.bot.send_chat_action(message.chat.id, "typing")
+            
+            # Ищем в интернете
+            search_results = await internet_searcher.search_online(text, max_results=3)
+            
+            if search_results:
+                # Генерируем ответ на основе найденной информации
+                ai_response = internet_searcher.generate_internet_answer(
+                    text, 
+                    search_results, 
+                    writer
+                )
+                logger.info(f"✅ Ответ сгенерирован с интернет-поиском")
+            else:
+                logger.info(f"⚠️ Интернет-поиск не вернул результатов")
         # Отправляем ответ
         writer_names = {
             "pushkin": "Пушкин",
