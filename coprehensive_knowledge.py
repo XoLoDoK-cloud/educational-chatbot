@@ -165,7 +165,30 @@ class WritersExpertBase:
         
         # Check if asking about specific writer
         for db_writer, info in self.writers_db.items():
-            if any(name in q_lower for name in [db_writer, info['name'].lower(), info['dates']]):
+            full_name = info['name'].lower()
+            parts = full_name.split()
+            first_name = parts[0] if parts else ""
+            last_name = parts[-1] if parts else ""
+            
+            # Create search variants - including word stems for Russian inflection
+            search_terms = [
+                db_writer,  # English key: "pushkin"
+                full_name,  # Full name: "александр пушкин"
+                first_name,  # First name: "александр"
+                last_name,  # Last name: "пушкин"
+                last_name[:4] if len(last_name) > 3 else last_name,  # Stem: "пушк"
+                last_name[:5] if len(last_name) > 4 else last_name,  # Longer stem
+                info['dates']  # Dates: "1799-1837"
+            ]
+            
+            # Check if any search term matches (including partial matches for word stems)
+            found = False
+            for term in search_terms:
+                if term and term in q_lower:
+                    found = True
+                    break
+            
+            if found:
                 response = f"""Позвольте мне дать вам исчерпывающий ответ:
 
 **{info['name']} ({info['dates']})**
