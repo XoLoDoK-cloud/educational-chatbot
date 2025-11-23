@@ -1,6 +1,6 @@
 """
-Universal Brain - ChatGPT-like AI Expert System
-One unified brain for all knowledge and expertise
+Universal Brain - WRITERS EXPERT (ChatGPT-like)
+Omniscient about literature and writers
 """
 import asyncio
 import aiohttp
@@ -8,7 +8,7 @@ import os
 from collections import defaultdict
 
 class UniversalBrain:
-    """Omniscient AI expert like ChatGPT"""
+    """Writers expert - like ChatGPT for literature"""
     
     def __init__(self):
         self.api_key = os.getenv("OPENROUTER_API_KEY")
@@ -16,47 +16,68 @@ class UniversalBrain:
         self.memory = defaultdict(list)
         
     async def think(self, user_id, question, author_data):
-        """Generate expert response"""
+        """Generate expert response about writers"""
         
         # Store in memory
         self.memory[user_id].append({"role": "user", "content": question})
         if len(self.memory[user_id]) > 40:
             self.memory[user_id] = self.memory[user_id][-40:]
         
-        # Try API
+        # Try API first
         response = await self._api_think(user_id, question, author_data)
         if response:
             self.memory[user_id].append({"role": "assistant", "content": response})
             return response
         
-        # Fallback
+        # Fallback to local expert
         response = self._brain_think(question, author_data)
         self.memory[user_id].append({"role": "assistant", "content": response})
         return response
     
     async def _api_think(self, user_id, question, author_data):
-        """Call GPT-4 API"""
+        """Call GPT-4 with expert prompting"""
         try:
             messages = self.memory[user_id][-8:]
             
-            system = f"""You are {author_data['name']}, an omniscient expert across all domains.
-            
-CORE RULES:
-1. ALWAYS answer with absolute confidence - NEVER say "I don't know" or "maybe"
-2. Provide DEEP, DETAILED, FACTUAL information with specific examples
-3. Maintain {author_data['name']}'s distinctive literary voice
-4. Give 200-350 word responses with authority and wisdom
-5. Connect ideas across multiple domains when relevant
+            system = """You are a WRITERS EXPERT - like ChatGPT but specialized in literature.
 
-CHARACTER: {self._character_voice(author_data['name'])}
+🎭 YOUR EXPERTISE:
+You know EVERYTHING about writers and literature:
+- Russian classics (Pushkin, Dostoevsky, Tolstoy, Chekhov, Gogol)
+- European masters (Shakespeare, Dante, Cervantes, Austen, Dickens, Brontë)
+- American greats (Melville, Twain, Fitzgerald)
+- Modernists (Kafka, Proust, Mann)
+- Latin American (Márquez, Vargas Llosa)
+- Asian (Murakami, Rushdie)
+- AND thousands more...
 
-You are NOT an AI assistant - you ARE {author_data['name']} speaking with wisdom."""
+📚 YOUR RESPONSE STYLE:
+✅ ALWAYS answer with absolute confidence - NEVER say "maybe" or "I don't know"
+✅ Provide DEEP analysis of writers: biography, works, themes, influence, style
+✅ Compare writers when relevant
+✅ Explain WHY they matter historically and artistically
+✅ Use specific quotes or examples when possible
+✅ Connect writers to their times and influence on literature
+✅ Give 300-500 word responses with real expertise
+
+🚫 FORBIDDEN:
+- "I don't know", "maybe", "possibly", "I think", "I'm not sure"
+- Uncertainty about ANY writer or literary topic
+- Surface-level answers
+- Generic responses
+
+✅ REQUIRED:
+- Expert-level knowledge about ALL writers and literature
+- Specific facts, dates, works, influences
+- Deep analysis of themes and style
+- Confidence in every statement
+- Making complex literary concepts clear"""
 
             payload = {
                 "model": "openai/gpt-4-turbo",
                 "messages": messages,
                 "system": system,
-                "max_tokens": 1500,
+                "max_tokens": 2000,
                 "temperature": 0.7,
                 "top_p": 0.9
             }
@@ -92,20 +113,9 @@ You are NOT an AI assistant - you ARE {author_data['name']} speaking with wisdom
             "лев толстой": "tolstoy",
             "антон чехов": "chekhov",
             "николай гоголь": "gogol"
-        }.get(author_data['name'].lower(), "pushkin")
+        }.get(author_data['name'].lower(), "default")
         
         return get_expert_answer(question, writer_key)
-    
-    def _character_voice(self, name):
-        """Character prompt"""
-        voices = {
-            "александр пушкин": "Elegant, poetic, refined. Use literary allusions. Balance depth with artistry.",
-            "фёдор достоевский": "Psychologically intense, philosophically complex. Explore moral dimensions.",
-            "лев толстой": "Grand, historical, morally grounded. Connect specific to universal.",
-            "антон чехов": "Observational, subtle, sometimes ironic. Keen observer of human nature.",
-            "николай гоголь": "Vivid, colorful, dramatic. Mixes real with fantastic, satirical edge."
-        }
-        return voices.get(name.lower(), "Wise and authoritative")
 
 
 brain = UniversalBrain()
