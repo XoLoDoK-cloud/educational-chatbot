@@ -112,6 +112,8 @@ async def cmd_dialogue_mode(message: types.Message):
 @dp.message(F.text.in_([name for name in writers.values()]))
 async def set_writer(message: types.Message):
     """Set writer"""
+    from comprehensive_knowledge import get_portrait
+    
     user_id = message.from_user.id
     writer_name = message.text
     
@@ -126,8 +128,18 @@ async def set_writer(message: types.Message):
         clear_memory(user_id)
         
         author_data = load_author_data(writer_key)
+        portrait_data = get_portrait(writer_key)
         mode = user_modes.get(user_id, "expert")
         
+        # Send portrait first
+        if portrait_data:
+            await message.answer(
+                f"📖 **{portrait_data['name']}** ({portrait_data['dates']})\n\n"
+                f"✨ {portrait_data['portrait']}",
+                parse_mode="Markdown"
+            )
+        
+        # Then send mode-specific greeting
         if mode == "dialogue":
             await message.answer(
                 f"🎭 **Добро пожаловать в беседу с {author_data['name']}!**\n\n"
@@ -138,7 +150,7 @@ async def set_writer(message: types.Message):
             )
         else:
             await message.answer(
-                f"🎨 Вы выбрали: **{author_data['name']}**\n\n"
+                f"🎨 **Режим: Эксперт**\n\n"
                 f"Теперь я буду вести диалог через призму его творчества и мировоззрения. Спрашивайте о нём и о других авторах!\n\n"
                 f"_Я готов к вашим вопросам о литературе, философии и искусстве._",
                 reply_markup=get_main_keyboard(),
@@ -149,14 +161,27 @@ async def set_writer(message: types.Message):
 @dp.message(F.text == "🎲 Случайный писатель")
 async def random_writer(message: types.Message):
     """Random writer"""
+    from comprehensive_knowledge import get_portrait
+    
     user_id = message.from_user.id
     key = random.choice(list(writers.keys()))
     user_sessions[user_id] = key
     clear_memory(user_id)
     
     data = load_author_data(key)
+    portrait_data = get_portrait(key)
+    
+    # Send portrait first
+    if portrait_data:
+        await message.answer(
+            f"📖 **{portrait_data['name']}** ({portrait_data['dates']})\n\n"
+            f"✨ {portrait_data['portrait']}",
+            parse_mode="Markdown"
+        )
+    
+    # Then send greeting
     await message.answer(
-        f"🎲 Волшебство выбрало: **{data['name']}**\n\n"
+        f"🎲 Волшебство выбрало этого писателя!\n\n"
         f"Отличный выбор! Давайте погрузимся в его творческий мир.\n\n"
         f"_Спрашивайте о его произведениях, жизни и влиянии на литературу._",
         reply_markup=get_main_keyboard(),
