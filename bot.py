@@ -193,11 +193,17 @@ async def try_direct_writer_input(message: types.Message):
     user_id = message.from_user.id
     text = message.text.strip()
     
-    # Try to find writer by name in knowledge base
+    # ✅ FIRST: Check if user already has active session with a writer
+    # If yes - continue conversation with the SAME writer
+    if user_id in user_sessions and user_sessions[user_id]:
+        await handle_message(message)
+        return
+    
+    # ✅ ONLY IF NO ACTIVE SESSION: Try to find writer by direct name input
     found_writer = knowledge.search_by_name(text)
     
     if found_writer:
-        # Writer found by direct input
+        # Writer found by direct input - start new conversation with this writer
         user_sessions[user_id] = found_writer
         clear_memory(user_id)
         mode = user_modes.get(user_id, "expert")
@@ -212,18 +218,13 @@ async def try_direct_writer_input(message: types.Message):
         await message.answer(response, parse_mode="Markdown")
         return
     
-    # If no writer found, check if we have an active session
-    if user_id not in user_sessions or not user_sessions[user_id]:
-        await message.answer(
-            "📖 Пожалуйста, сначала выберите писателя, нажав на кнопку «📚 Выбрать писателя» или напишите его имя напрямую.\n\n"
-            "_Он станет основой нашей беседы о литературе и искусстве._",
-            reply_markup=get_main_keyboard(),
-            parse_mode="Markdown"
-        )
-        return
-    
-    # Continue with regular message handling
-    await handle_message(message)
+    # No active session found and writer name not recognized
+    await message.answer(
+        "📖 Пожалуйста, сначала выберите писателя, нажав на кнопку «📚 Выбрать писателя» или напишите его имя напрямую.\n\n"
+        "_Он станет основой нашей беседы о литературе и искусстве._",
+        reply_markup=get_main_keyboard(),
+        parse_mode="Markdown"
+    )
 
 
 async def handle_message(message: types.Message):
