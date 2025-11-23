@@ -21,7 +21,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 print("🚀 Запуск литературного бота...")
-print(f"🔑 Токен: {BOT_TOKEN[:10]}...")
+if BOT_TOKEN:
+    print(f"🔑 Токен: {BOT_TOKEN[:10]}...")
+else:
+    print("⚠️ ОШИБКА: BOT_TOKEN не установлен!")")
 
 # Flask для keep-alive
 app = Flask('')
