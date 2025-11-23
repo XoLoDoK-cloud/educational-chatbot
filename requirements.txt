@@ -10,15 +10,3 @@ beautifulsoup4
 flask
 googlesearch-python
 python-dotenv
-aiogram
-aiohttp
-beautifulsoup4
-flask
-googlesearch-python
-python-dotenv
-aiogram
-aiohttp
-beautifulsoup4
-flask
-googlesearch-python
-python-dotenv
