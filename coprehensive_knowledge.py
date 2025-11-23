@@ -676,5 +676,22 @@ def get_dialogue_answer(question, writer_name="default"):
     return kb.get_dialogue_text(writer_key, question)
 
 
+def get_portrait(writer_key):
+    """Get writer's self-portrait (description)"""
+    kb = WritersExpertBase()
+    
+    if writer_key not in kb.writers_db:
+        return None
+    
+    writer = kb.writers_db[writer_key]
+    return {
+        'name': writer.get('name', ''),
+        'dates': writer.get('dates', ''),
+        'portrait': writer.get('about', ''),
+        'key_works': writer.get('key_works', []),
+        'works_with_dates': writer.get('works_with_dates', {})
+    }
+
+
 # Initialize knowledge
 knowledge = WritersExpertBase()
