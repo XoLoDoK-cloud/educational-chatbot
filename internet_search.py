@@ -15,20 +15,34 @@ class InternetSearcher:
             from googlesearch import search
             
             results = []
-            # Ищем в Google в отдельном потоке
+            # Ищем в Google в отдельном потоке с таймаутом
             loop = asyncio.get_event_loop()
             with ThreadPoolExecutor() as executor:
-                search_results = await loop.run_in_executor(
-                    executor,
-                    lambda: list(search(query, num_results=max_results, lang="ru"))
-                )
-
+                try:
+                    search_results = await asyncio.wait_for(
+                        loop.run_in_executor(
+                            executor,
+                            lambda: list(search(query, num_results=max_results, lang="ru"))
+                        ),
+                        timeout=10.0  # Таймаут 10 секунд для поиска
+                    )
+                except asyncio.TimeoutError:
+                    print("⏰ Таймаут поиска в Google")
+                    return []
             async with aiohttp.ClientSession() as session:
                 tasks = []
                 for url in search_results[:max_results]:
                     tasks.append(self.fetch_page_content(session, url))
                 
-                pages_content = await asyncio.gather(*tasks, return_exceptions=True)
+                # Добавляем таймаут для загрузки страниц
+                try:
+                    pages_content = await asyncio.wait_for(
+                        asyncio.gather(*tasks, return_exceptions=True),
+                        timeout=15.0  # Таймаут 15 секунд для загрузки страниц
+                    )
+                except asyncio.TimeoutError:
+                    print("⏰ Таймаут загрузки страниц")
+                    return []
                 
                 for url, content in zip(search_results, pages_content):
                     if content and not isinstance(content, Exception):
@@ -36,17 +50,20 @@ class InternetSearcher:
                             'url': url,
                             'content': self.clean_content(content)[:300]
                         })
-            
+            print(f"✅ Найдено результатов: {len(results)}")
             return results
             
         except Exception as e:
             print(f"❌ Ошибка поиска: {e}")
+            import traceback
+            traceback.print_exc()
             return []
     
     async def fetch_page_content(self, session, url):
         """Получает содержимое страницы"""
         try:
-            async with session.get(url, timeout=10) as response:
+            timeout = aiohttp.ClientTimeout(total=8)
+            async with session.get(url, timeout=timeout) as response:
                 if response.status == 200:
                     html = await response.text()
                     soup = BeautifulSoup(html, 'html.parser')
@@ -58,7 +75,8 @@ class InternetSearcher:
                     text = soup.get_text()
                     return text
                 return None
-        except:
+        except Exception as e:
+            print(f"⚠️ Ошибка загрузки {url}: {e}")
             return None
     
     def clean_content(self, text):
