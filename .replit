@@ -1,6 +1,6 @@
 run = "python bot.py"
 language = "python3"
-modules = ["python-3.11"]
+modules = ["python-3.12"]
 
 [nix]
 channel = "stable-25_05"
@@ -10,17 +10,12 @@ expertMode = true
 
 [[ports]]
 localPort = 8080
-externalPort = 80
-
-[[ports]]
-localPort = 36293
-externalPort = 80
+externalPort = 8080
 
 [workflows]
 runButton = "Project"
 
 [[workflows.workflow]]
-
 name = "Project"
 mode = "parallel"
 author = "agent"
@@ -38,4 +33,5 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python bot.py"
+args = "python start.py"
+waitForPort = 8080
