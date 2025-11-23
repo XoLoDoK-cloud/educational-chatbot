@@ -237,7 +237,10 @@ async def handle_message(message: types.Message):
         logger.info(f"✅ Ответ сгенерирован: {ai_response[:100]}...")
         
         # Проверяем, нужен ли интернет-поиск
-        if internet_searcher.should_search_internet(ai_response, text):
+        should_search = internet_searcher.should_search_internet(ai_response, text)
+        logger.info(f"📊 Проверка интернет-поиска: {should_search} (вопрос: '{text[:50]}...')")
+        
+        if should_search:
             logger.info(f"🔍 Запускаю интернет-поиск для: {text}")
             await message.bot.send_chat_action(message.chat.id, "typing")
             
