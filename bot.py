@@ -7,8 +7,7 @@ from aiogram.filters import Command
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 from config import BOT_TOKEN
-from ai_openrouter import generate_literary_response
-from internet_search import internet_searcher
+from ai_expert import generate_expert_response
 import sys
 
 # Настройка логирования
@@ -210,20 +209,10 @@ async def handle_message(message: types.Message):
     await message.bot.send_chat_action(message.chat.id, "typing")
     
     try:
-        logger.info(f"🧠 Генерация ответа в стиле {author_data['name']}")
+        logger.info(f"🧠 Генерация экспертного ответа в стиле {author_data['name']}")
         
-        # Проверяем, нужен ли интернет-поиск (для фактологических вопросов)
-        should_search = internet_searcher.should_search_internet("", text)
-        
-        if should_search:
-            logger.info(f"🔍 Фактологический вопрос обнаружен, используется модель с доступом к интернету")
-            # Передаем флаг, что нужен интернет-поиск
-            internet_context = "USE_INTERNET_SEARCH"
-        else:
-            internet_context = None
-        
-        # Генерируем ответ через нейросеть (с интернетом если нужно)
-        ai_response = await generate_literary_response(text, author_data, internet_context)
+        # Генерируем ответ через Expert систему (гарантированно точный)
+        ai_response = await generate_expert_response(text, author_data)
         
         if not ai_response or len(ai_response.strip()) == 0:
             ai_response = "Извините, не удалось сгенерировать ответ. Попробуйте еще раз."
@@ -298,4 +287,3 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
-
