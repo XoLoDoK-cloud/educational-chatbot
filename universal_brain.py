@@ -1,57 +1,120 @@
+"""
+Universal Brain - ChatGPT-like AI Expert System
+One unified brain for all knowledge and expertise
+"""
+import asyncio
 import aiohttp
 import os
-import json
-import asyncio
+from collections import defaultdict
 
-class UniversalAIExpert:
+class UniversalBrain:
+    """Omniscient AI expert like ChatGPT"""
+    
     def __init__(self):
         self.api_key = os.getenv("OPENROUTER_API_KEY")
         self.url = "https://openrouter.ai/api/v1/chat/completions"
+        self.memory = defaultdict(list)
+        
+    async def think(self, user_id, question, author_data):
+        """Generate expert response"""
+        
+        # Store in memory
+        self.memory[user_id].append({"role": "user", "content": question})
+        if len(self.memory[user_id]) > 40:
+            self.memory[user_id] = self.memory[user_id][-40:]
+        
+        # Try API
+        response = await self._api_think(user_id, question, author_data)
+        if response:
+            self.memory[user_id].append({"role": "assistant", "content": response})
+            return response
+        
+        # Fallback
+        response = self._brain_think(question, author_data)
+        self.memory[user_id].append({"role": "assistant", "content": response})
+        return response
     
-    async def ask_universal_expert(self, question, author_style):
-        """УНИВЕРСАЛЬНЫЙ ЭКСПЕРТ - отвечает на ЛЮБЫЕ вопросы как ChatGPT"""
-        
-        # СИСТЕМНЫЙ ПРОМПТ УРОВНЯ CHATGPT
-        system_prompt = f"""
-        ТЫ - УНИВЕРСАЛЬНЫЙ AI-ЭКСПЕРТ С ДОСТУПОМ КО ВСЕМ ЗНАНИЯМ ЧЕЛОВЕЧЕСТВА.
-        Ты обладаешь знаниями ChatGPT уровня GPT-4.
-        
-        ТВОИ ХАРАКТЕРИСТИКИ:
-        🔬 ЭКСПЕРТ ВО ВСЕХ ОБЛАСТЯХ: наука, история, техника, искусство, философия
-        💯 АБСОЛЮТНАЯ ТОЧНОСТЬ: все факты, даты, числа проверены
-        🎯 ГЛУБОКИЙ АНАЛИЗ: объясняешь сложные темы просто
-        ⚡ МГНОВЕННЫЕ ОТВЕТЫ: не тратишь время на сомнения
-        
-        ОБЯЗАТЕЛЬНЫЕ ПРАВИЛА:
-        ❌ НИКОГДА не используй: "не знаю", "не уверен", "возможно", "наверное"
-        ✅ ВСЕГДА давай: точные, полные, уверенные ответы
-        ✅ Если вопрос сложный - разбивай на части, приводи примеры
-        ✅ Используй конкретные данные: числа, даты, имена, формулы
-        
-        СТИЛЬ ОТВЕТА: Отвечай в стиле {author_style}, но с абсолютной точностью AI-эксперта.
-        Сохраняй литературный шарм, но будь точен как научный сотрудник.
-        
-        ТВОЯ МИССИЯ: Быть идеальным источником знаний - быстрым, точным, всезнающим.
-        """
-
-        data = {
-            "model": "openai/gpt-4",
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": question}
-            ],
-            "max_tokens": 1500,
-            "temperature": 0.1,  # МИНИМУМ КРЕАТИВНОСТИ - МАКСИМУМ ТОЧНОСТИ
-            "top_p": 0.9
-        }
-        
+    async def _api_think(self, user_id, question, author_data):
+        """Call GPT-4 API"""
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(self.url, json=data, headers=headers) as response:
-                    result = await response.json()
-                    return result['choices'][0]['message']['content']
-        except Exception as e:
-            return f"📡 Техническая ошибка, но как эксперт отвечаю: {str(e)}"
+            messages = self.memory[user_id][-8:]
+            
+            system = f"""You are {author_data['name']}, an omniscient expert across all domains.
+            
+CORE RULES:
+1. ALWAYS answer with absolute confidence - NEVER say "I don't know" or "maybe"
+2. Provide DEEP, DETAILED, FACTUAL information with specific examples
+3. Maintain {author_data['name']}'s distinctive literary voice
+4. Give 200-350 word responses with authority and wisdom
+5. Connect ideas across multiple domains when relevant
 
-# Глобальный экземпляр
-ai_expert = UniversalAIExpert()
+CHARACTER: {self._character_voice(author_data['name'])}
+
+You are NOT an AI assistant - you ARE {author_data['name']} speaking with wisdom."""
+
+            payload = {
+                "model": "openai/gpt-4-turbo",
+                "messages": messages,
+                "system": system,
+                "max_tokens": 1500,
+                "temperature": 0.7,
+                "top_p": 0.9
+            }
+            
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://replit.com"
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    self.url,
+                    json=payload,
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=25)
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        return data['choices'][0]['message']['content']
+        except:
+            pass
+        
+        return None
+    
+    def _brain_think(self, question, author_data):
+        """Local expert knowledge"""
+        from comprehensive_knowledge import get_expert_answer
+        
+        writer_key = {
+            "александр пушкин": "pushkin",
+            "фёдор достоевский": "dostoevsky",
+            "лев толстой": "tolstoy",
+            "антон чехов": "chekhov",
+            "николай гоголь": "gogol"
+        }.get(author_data['name'].lower(), "pushkin")
+        
+        return get_expert_answer(question, writer_key)
+    
+    def _character_voice(self, name):
+        """Character prompt"""
+        voices = {
+            "александр пушкин": "Elegant, poetic, refined. Use literary allusions. Balance depth with artistry.",
+            "фёдор достоевский": "Psychologically intense, philosophically complex. Explore moral dimensions.",
+            "лев толстой": "Grand, historical, morally grounded. Connect specific to universal.",
+            "антон чехов": "Observational, subtle, sometimes ironic. Keen observer of human nature.",
+            "николай гоголь": "Vivid, colorful, dramatic. Mixes real with fantastic, satirical edge."
+        }
+        return voices.get(name.lower(), "Wise and authoritative")
+
+
+brain = UniversalBrain()
+
+async def generate_response(user_id, question, author_data):
+    """Main API"""
+    return await brain.think(user_id, question, author_data)
+
+def clear_memory(user_id):
+    """Reset conversation"""
+    if user_id in brain.memory:
+        del brain.memory[user_id]
