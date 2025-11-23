@@ -252,46 +252,52 @@ async def handle_message(message: types.Message):
 # Главная функция
 async def force_reset_bot():
     """Принудительный сброс всех подключений"""
+    print("🔄 ЗАПУСК FORCE_RESET_BOT...")
+    
     try:
         from aiogram.client.session.aiohttp import AiohttpSession
         
-        logger.info("🔄 Принудительный сброс...")
+        print("🔄 Создание временной сессии...")
         session = AiohttpSession()
         temp_bot = Bot(token=BOT_TOKEN, session=session)
         
         # Многократный сброс
         for i in range(3):
-            logger.info(f"🔄 Сброс попытка {i+1}/3")
+            print(f"🔄 Сброс попытка {i+1}/3")
             await temp_bot.delete_webhook(drop_pending_updates=True)
             await asyncio.sleep(2)
         
+        print("🔄 Закрытие сессии...")
         await session.close()
-        logger.info("✅ Принудительный сброс завершен")
+        print("✅ Принудительный сброс завершен")
         
     except Exception as e:
-        logger.error(f"❌ Ошибка сброса: {e}")
+        print(f"❌ Ошибка сброса: {e}")
 
 async def main():
     """Основная функция запуска бота"""
+    print("🔧 ЗАПУСК MAIN ФУНКЦИИ...")
+    
     try:
-        # ПРИНУДИТЕЛЬНЫЙ СБРОС
+        print("🔄 Шаг 1: Принудительный сброс...")
         await force_reset_bot()
         
-        # Долгое ожидание
-        logger.info("⏳ Ожидание 10 секунд...")
-        await asyncio.sleep(10)
+        print("⏳ Шаг 2: Ожидание 5 секунд...")
+        await asyncio.sleep(5)
         
-        # Запускаем keep-alive
+        print("🔧 Шаг 3: Запуск keep-alive...")
         keep_alive()
-        logger.info("✅ Keep-alive запущен")
         
-        # Запускаем бота
+        print("🧠 Шаг 4: Запуск polling...")
         logger.info("🧠 Запуск литературной нейросети...")
         print("🎭 Бот готов к работе! Найдите нового бота в Telegram")
         
+        # Запускаем polling с таймаутом
         await dp.start_polling(bot, allowed_updates=["message"])
         
     except Exception as e:
+        print(f"💥 КРИТИЧЕСКАЯ ОШИБКА в main: {e}")
         logger.error(f"❌ Критическая ошибка: {e}")
     finally:
+        print("🔧 Завершение работы...")
         await bot.session.close()
