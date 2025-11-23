@@ -250,12 +250,36 @@ async def handle_message(message: types.Message):
         await message.answer("⚠️ Произошла ошибка при генерации ответа. Попробуйте еще раз.")
 
 # Главная функция
+async def force_reset_bot():
+    """Принудительный сброс всех подключений"""
+    try:
+        from aiogram.client.session.aiohttp import AiohttpSession
+        
+        logger.info("🔄 Принудительный сброс...")
+        session = AiohttpSession()
+        temp_bot = Bot(token=BOT_TOKEN, session=session)
+        
+        # Многократный сброс
+        for i in range(3):
+            logger.info(f"🔄 Сброс попытка {i+1}/3")
+            await temp_bot.delete_webhook(drop_pending_updates=True)
+            await asyncio.sleep(2)
+        
+        await session.close()
+        logger.info("✅ Принудительный сброс завершен")
+        
+    except Exception as e:
+        logger.error(f"❌ Ошибка сброса: {e}")
+
 async def main():
     """Основная функция запуска бота"""
     try:
-        # Сбрасываем вебхуки
-        await bot.delete_webhook(drop_pending_updates=True)
-        logger.info("✅ Вебхуки сброшены")
+        # ПРИНУДИТЕЛЬНЫЙ СБРОС
+        await force_reset_bot()
+        
+        # Долгое ожидание
+        logger.info("⏳ Ожидание 10 секунд...")
+        await asyncio.sleep(10)
         
         # Запускаем keep-alive
         keep_alive()
@@ -263,19 +287,11 @@ async def main():
         
         # Запускаем бота
         logger.info("🧠 Запуск литературной нейросети...")
-        print("🎭 Бот готов к работе! Найдите @LiteraryGeniusBot в Telegram")
+        print("🎭 Бот готов к работе! Найдите нового бота в Telegram")
         
-        await dp.start_polling(bot, allowed_updates=["message", "callback_query"])
+        await dp.start_polling(bot, allowed_updates=["message"])
         
     except Exception as e:
         logger.error(f"❌ Критическая ошибка: {e}")
     finally:
         await bot.session.close()
-
-if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("⏹️ Бот остановлен пользователем")
-    except Exception as e:
-        logger.error(f"💥 Фатальная ошибка: {e}")
