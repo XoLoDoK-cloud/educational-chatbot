@@ -13,7 +13,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN
-from universal_brain import generate_response, clear_memory
+from universal_brain import generate_response, generate_dialogue_response, clear_memory
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -30,6 +30,7 @@ writers = {
 }
 
 user_sessions = {}
+user_modes = {}  # "expert" или "dialogue" режим
 
 
 def load_author_data(writer_key):
@@ -54,6 +55,7 @@ def get_main_keyboard():
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="📚 Выбрать писателя")],
+            [KeyboardButton(text="💬 Диалог с писателем")],
             [KeyboardButton(text="🎲 Случайный писатель")],
             [KeyboardButton(text="❓ О боте")]
         ],
@@ -91,8 +93,18 @@ async def cmd_start(message: types.Message):
 
 @dp.message(F.text == "📚 Выбрать писателя")
 async def cmd_select_writer(message: types.Message):
-    """Select writer"""
-    await message.answer("🎭 Какого писателя вы хотите изучить?", reply_markup=get_writers_keyboard())
+    """Select writer for expert mode"""
+    user_id = message.from_user.id
+    user_modes[user_id] = "expert"
+    await message.answer("📖 Какого писателя вы хотите изучить?", reply_markup=get_writers_keyboard())
+
+
+@dp.message(F.text == "💬 Диалог с писателем")
+async def cmd_dialogue_mode(message: types.Message):
+    """Select writer for dialogue mode"""
+    user_id = message.from_user.id
+    user_modes[user_id] = "dialogue"
+    await message.answer("🎭 Выберите писателя для беседы:\n\n_Вы сможете беседовать с ним как с живым человеком, узнавать о его жизни, творчестве и философии!_", reply_markup=get_writers_keyboard())
 
 
 @dp.message(F.text.in_([name for name in writers.values()]))
@@ -112,13 +124,24 @@ async def set_writer(message: types.Message):
         clear_memory(user_id)
         
         author_data = load_author_data(writer_key)
-        await message.answer(
-            f"🎨 Вы выбрали: **{author_data['name']}**\n\n"
-            f"Теперь я буду вести диалог через призму его творчества и мировоззрения. Спрашивайте о нём и о других авторах!\n\n"
-            f"_Я готов к вашим вопросам о литературе, философии и искусстве._",
-            reply_markup=get_main_keyboard(),
-            parse_mode="Markdown"
-        )
+        mode = user_modes.get(user_id, "expert")
+        
+        if mode == "dialogue":
+            await message.answer(
+                f"🎭 **Добро пожаловать в беседу с {author_data['name']}!**\n\n"
+                f"_Вы разговариваете с самим писателем. Спрашивайте его о его жизни, творчестве, философии и мировоззрении._\n\n"
+                f"💭 Что вы хотите узнать о нём?",
+                reply_markup=get_main_keyboard(),
+                parse_mode="Markdown"
+            )
+        else:
+            await message.answer(
+                f"🎨 Вы выбрали: **{author_data['name']}**\n\n"
+                f"Теперь я буду вести диалог через призму его творчества и мировоззрения. Спрашивайте о нём и о других авторах!\n\n"
+                f"_Я готов к вашим вопросам о литературе, философии и искусстве._",
+                reply_markup=get_main_keyboard(),
+                parse_mode="Markdown"
+            )
 
 
 @dp.message(F.text == "🎲 Случайный писатель")
@@ -182,10 +205,15 @@ async def handle_message(message: types.Message):
     
     try:
         logger.info(f"Generating response for user {user_id}")
-        response = await generate_response(user_id, text, author_data)
+        mode = user_modes.get(user_id, "expert")
+        
+        if mode == "dialogue":
+            response = await generate_dialogue_response(user_id, text, author_data)
+        else:
+            response = await generate_response(user_id, text, author_data)
         
         if not response:
-            response = "Ошибка. Попробуйте ещё раз."
+            response = "Извините, мне нужна минутка для размышления. Повторите вопрос."
         
         await message.answer(f"{response}", parse_mode="Markdown")
         logger.info(f"Sent response to {user_id}")
