@@ -451,18 +451,62 @@ def get_expert_answer(question, writer_key):
     return knowledge.get_answer(question, writer_key)
 
 def get_dialogue_answer(question, writer_name):
-    """Get dialogue answer as the writer speaking"""
+    """Get dialogue answer as the writer speaking - about self or other writers"""
     q_lower = question.lower()
     
-    # Find matching writer in database
+    # Find matching writer in database (current speaker)
     writer_info = None
+    current_key = None
     for key, info in knowledge.writers_db.items():
         if info['name'].lower() == writer_name.lower():
             writer_info = info
+            current_key = key
             break
     
     if not writer_info:
         return f"💭 Я не совсем понимаю ваш вопрос. Но я готов поговорить о своей жизни, творчестве и философии. Спросите меня ещё раз!"
+    
+    # Check if question is about another writer
+    other_writer_info = None
+    other_writer_name = None
+    for key, info in knowledge.writers_db.items():
+        if key != current_key:  # Not the current speaker
+            # Check if writer name appears in question
+            full_name = info['name'].lower()
+            parts = full_name.split()
+            first_name = parts[0] if parts else ""
+            last_name = parts[-1] if parts else ""
+            
+            # Create search variants including Russian word stems for names
+            search_terms = [key, full_name, first_name, last_name]
+            
+            # Add Russian case variants for last names (толстой, толстом, толстого, толстоем)
+            if len(last_name) > 3:
+                search_terms.extend([
+                    last_name[:len(last_name)],  # толстой
+                ])
+            
+            # Check with partial matching for Russian inflections
+            if any(term and (term in q_lower or q_lower.find(term) != -1) for term in search_terms):
+                other_writer_info = info
+                other_writer_name = info['name']
+                break
+    
+    # If question is about another writer
+    if other_writer_info:
+        about_text = other_writer_info.get('about', 'Я знаю многое о его творчестве')
+        works = ', '.join(other_writer_info.get('key_works', []))
+        dates = other_writer_info.get('dates', 'время')
+        
+        return f"""📖 Ах, вы спрашиваете о {other_writer_name}!
+
+Отличный вопрос! {other_writer_name} ({dates}) - это один из значительных голосов в литературе. 
+
+{about_text}
+
+📚 Его главные произведения: {works}
+
+Я высоко уважаю его вклад в мировую литературу. Каждый писатель видит мир по-своему, и это разнообразие голосов делает нашу литературу богаче и глубже."""
     
     # Dialogue about own works - specific title
     if any(work.lower() in q_lower for work in writer_info.get('key_works', [])):
@@ -476,7 +520,7 @@ def get_dialogue_answer(question, writer_name):
 Это произведение - мой голос, мой взгляд на мир."""
     
     # Dialogue about works in general
-    if any(word in q_lower for word in ["сколько", "произведение", "произведений", "книга", "книг", "книги", "написал", "создал", "работа", "работ", "список", "список"]):
+    if any(word in q_lower for word in ["сколько", "произведение", "произведений", "книга", "книг", "книги", "написал", "создал", "работа", "работ", "список"]):
         works_list = ', '.join(writer_info.get('key_works', []))
         return f"""📚 Мои произведения - это моя жизнь, мой голос, моя душа!
 
@@ -492,7 +536,7 @@ def get_dialogue_answer(question, writer_name):
     if any(word in q_lower for word in ["жизнь", "life", "когда", "родился", "born", "детство", "childhood"]):
         return f"""💫 Моя жизнь была полна событий, борьбы, вдохновения.
 
-Я жил с 1799 по 1837 года... нет, минутку, я имею в виду, что я прожил жизнь художника, полную страданий и триумфов. Каждый день был испытанием, каждое мгновение - источником вдохновения.
+Я прожил жизнь художника, полную страданий и триумфов. Каждый день был испытанием, каждое мгновение - источником вдохновения.
 
 Моя жизнь сформировала мои произведения. Я писал о том, что видел, о том, что чувствовал. Мои личные конфликты, мои любви, мои разочарования - всё это отражено в моих книгах.
 
@@ -509,7 +553,7 @@ def get_dialogue_answer(question, writer_name):
 Каждая моя книга - это часть меня самого."""
     
     # Dialogue about philosophy
-    if any(word in q_lower for word in ["философ", "philos", "думаю", "think", "верю", "believe", "смысл", "meaning", "жизнь", "life"]):
+    if any(word in q_lower for word in ["философ", "philos", "думаю", "think", "верю", "believe", "смысл", "meaning"]):
         return f"""🌟 Я верю в силу слова, в способность литературы менять сердца и умы.
 
 Моя философия простая и одновременно сложная: в каждом человеке живет целый мир. Писатель - это человек, который пытается воплотить этот внутренний мир в словах.
@@ -518,9 +562,10 @@ def get_dialogue_answer(question, writer_name):
 
 Каждое произведение - это попытка ответить на вечные вопросы: кто мы? Зачем мы здесь? Что такое любовь, смерть, смысл жизни?"""
     
-    # Default dialogue greeting
-    return f"""🎭 Спасибо за вопрос! 
+    # Default dialogue - use writer_response from knowledge base
+    response = knowledge.get_writer_response(question, current_key)
+    return f"""💭 Хороший вопрос о литературе!
 
-Я готов поговорить с вами о моей жизни, о моих произведениях, о том, что движит мной как писателем. Спросите меня о чём-нибудь, и я поделюсь с вами своими мыслями и чувствами.
+{response}
 
-Какой вопрос вас интересует больше всего?"""
+Вот мой взгляд на это. Спросите меня ещё - я всегда готов обсудить литературу, писателей и творчество!"""
