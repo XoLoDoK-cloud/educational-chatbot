@@ -28,10 +28,9 @@ args = "Literary Bot"
 name = "Literary Bot"
 author = "agent"
 
-[workflows.workflow.metadata]
-outputType = "console"
-
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python start.py"
-waitForPort = 8080
+
+[workflows.workflow.metadata]
+outputType = "console"
