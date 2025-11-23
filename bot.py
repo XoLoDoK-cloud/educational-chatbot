@@ -326,3 +326,6 @@ async def main():
     finally:
         print("🔧 Завершение работы...")
         await bot.session.close()
+
+if __name__ == '__main__':
+    asyncio.run(main())
