@@ -81,7 +81,12 @@ async def cmd_start(message: types.Message):
     )
 
 
-@dp.message(lambda m: m.text == "📚 Выбрать писателя")
+async def check_select_writer(message: types.Message) -> bool:
+    """Check if select writer button"""
+    return message.text == "📚 Выбрать писателя"
+
+
+@dp.message(check_select_writer)
 async def cmd_select_writer(message: types.Message):
     """Select writer"""
     await message.answer(
@@ -90,7 +95,12 @@ async def cmd_select_writer(message: types.Message):
     )
 
 
-@dp.message(lambda m: m.text in writers.values())
+async def check_writer_name(message: types.Message) -> bool:
+    """Check if message is writer name"""
+    return message.text is not None and message.text in writers.values()
+
+
+@dp.message(check_writer_name)
 async def set_writer(message: types.Message):
     """Set selected writer"""
     user_id = message.from_user.id
@@ -115,13 +125,23 @@ async def set_writer(message: types.Message):
         )
 
 
-@dp.message(lambda m: m.text == "🔄 Сменить писателя")
+async def check_change_writer(message: types.Message) -> bool:
+    """Check if change writer button"""
+    return message.text == "🔄 Сменить писателя"
+
+
+@dp.message(check_change_writer)
 async def cmd_change_writer(message: types.Message):
     """Change writer"""
     await cmd_select_writer(message)
 
 
-@dp.message(lambda m: m.text == "💫 Случайный писатель")
+async def check_random_writer(message: types.Message) -> bool:
+    """Check if random writer button"""
+    return message.text == "💫 Случайный писатель"
+
+
+@dp.message(check_random_writer)
 async def cmd_random_writer(message: types.Message):
     """Random writer"""
     user_id = message.from_user.id
