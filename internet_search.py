@@ -1,9 +1,8 @@
 import aiohttp
 import asyncio
-from googlesearch import search
 from bs4 import BeautifulSoup
 import re
-
+from concurrent.futures import ThreadPoolExecutor
 class InternetSearcher:
     def __init__(self):
         self.session = None
@@ -13,10 +12,17 @@ class InternetSearcher:
         try:
             print(f"🔍 Бот не знает ответ, ищу в интернете: {query}")
             
-            results = []
-            # Ищем в Google
-            search_results = list(search(query, num_results=max_results, lang="ru"))
+            from googlesearch import search
             
+            results = []
+            # Ищем в Google в отдельном потоке
+            loop = asyncio.get_event_loop()
+            with ThreadPoolExecutor() as executor:
+                search_results = await loop.run_in_executor(
+                    executor,
+                    lambda: list(search(query, num_results=max_results, lang="ru"))
+                )
+
             async with aiohttp.ClientSession() as session:
                 tasks = []
                 for url in search_results[:max_results]:
