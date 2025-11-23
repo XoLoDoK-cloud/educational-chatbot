@@ -128,18 +128,9 @@ async def set_writer(message: types.Message):
         clear_memory(user_id)
         
         author_data = load_author_data(writer_key)
-        portrait_data = get_portrait(writer_key)
         mode = user_modes.get(user_id, "expert")
         
-        # Send portrait first
-        if portrait_data:
-            await message.answer(
-                f"📖 **{portrait_data['name']}** ({portrait_data['dates']})\n\n"
-                f"✨ {portrait_data['portrait']}",
-                parse_mode="Markdown"
-            )
-        
-        # Then send mode-specific greeting
+        # Send mode-specific greeting
         if mode == "dialogue":
             await message.answer(
                 f"🎭 **Добро пожаловать в беседу с {author_data['name']}!**\n\n"
@@ -169,17 +160,8 @@ async def random_writer(message: types.Message):
     clear_memory(user_id)
     
     data = load_author_data(key)
-    portrait_data = get_portrait(key)
     
-    # Send portrait first
-    if portrait_data:
-        await message.answer(
-            f"📖 **{portrait_data['name']}** ({portrait_data['dates']})\n\n"
-            f"✨ {portrait_data['portrait']}",
-            parse_mode="Markdown"
-        )
-    
-    # Then send greeting
+    # Send greeting
     await message.answer(
         f"🎲 Волшебство выбрало этого писателя!\n\n"
         f"Отличный выбор! Давайте погрузимся в его творческий мир.\n\n"
@@ -213,7 +195,7 @@ async def about_bot(message: types.Message):
 @dp.message()
 async def try_direct_writer_input(message: types.Message):
     """Try to find writer by direct name input"""
-    from comprehensive_knowledge import knowledge, get_expert_answer, get_dialogue_answer
+    from comprehensive_knowledge import knowledge, get_portrait
     
     user_id = message.from_user.id
     text = message.text.strip()
@@ -233,14 +215,11 @@ async def try_direct_writer_input(message: types.Message):
         clear_memory(user_id)
         mode = user_modes.get(user_id, "expert")
         
-        author_name = knowledge.writers_db[found_writer]['name']
+        author_data = load_author_data(found_writer)
         
-        if mode == "dialogue":
-            response = get_dialogue_answer(f"Расскажи о себе", author_name)
-        else:
-            response = get_expert_answer(f"Расскажи о {author_name}", found_writer)
-        
-        await message.answer(response, parse_mode="Markdown")
+        # Process the question through Claude
+        await message.bot.send_chat_action(message.chat.id, "typing")
+        await handle_message(message)
         return
     
     # No active session found and writer name not recognized
