@@ -3,6 +3,8 @@ import asyncio
 import aiohttp
 import random
 import re
+from neural_writer import neural_ai
+from internet_search import internet_searcher
 
 class MegaAI:
     def __init__(self):
@@ -42,82 +44,53 @@ class MegaAI:
                     print(f"✅ Цитата выбрана: {quote[:60]}...")
                     return quote
             
-            # Для остальных вопросов - используем интернет через Perplexity
-            print(f"🌐 Используется Perplexity для поиска в интернете")
-            return await self._call_perplexity(message, author_data)
+            # Получаем имя писателя для нейросети
+            writer_name = author_data['name'].lower()
+            # Создаём ключ для поиска в словаре нейросети
+            writer_keys = {
+                "александр пушкин": "пушкин",
+                "фёдор достоевский": "достоевский",
+                "лев толстой": "толстой",
+                "антон чехов": "чехов",
+                "николай гоголь": "гоголь"
+            }
+            
+            neural_writer_key = writer_keys.get(writer_name, "пушкин")
+            
+            # Проверяем, нужен ли интернет-поиск (для фактологических вопросов)
+            should_search = internet_searcher.should_search_internet("", message)
+            
+            if should_search:
+                print(f"🔍 Фактологический вопрос обнаружен, ищу в интернете")
+                # Пытаемся найти информацию в интернете
+                search_results = await internet_searcher.search_online(message, max_results=3)
+                
+                if search_results:
+                    print(f"✅ Найдено {len(search_results)} результатов в интернете")
+                    # Генерируем ответ на основе найденной информации
+                    response = internet_searcher.generate_internet_answer(
+                        message, 
+                        search_results, 
+                        neural_writer_key
+                    )
+                    return response
+            
+            # Если интернет не нужен или не найдено - используем встроенную нейросеть
+            print(f"🧠 Используется встроенная нейросеть для ответа")
+            response = neural_ai.generate_response(neural_writer_key, message)
+            
+            if not response or len(response.strip()) == 0:
+                response = self._generate_fallback_response(author_data, message)
+            
+            return response
             
         except Exception as e:
             print(f"❌ Ошибка: {e}")
-            # Fallback на цитату при ошибке
-            if 'greetings' in author_data and author_data['greetings']:
-                return random.choice(author_data['greetings'])
-            return f"{author_data['name']} размышляет над вашим вопросом..."
-    
-    async def _call_perplexity(self, message, author_data):
-        """Вызывает Perplexity с интернет-поиском"""
-        try:
-            model = "perplexity/llama-3.1-sonar-small-128k-online"
-            
-            system_prompt = f"""Ты - {author_data['name']}, русский классический писатель.
-Стиль: {author_data.get('style', 'изящный и выразительный')}
-Личность: {author_data.get('personality', 'глубокая и рефлексивная')}
-
-Инструкции:
-1. Отвечай ТОЛЬКО в стиле этого писателя
-2. Используй интернет для поиска свежей и точной информации
-3. Ответ должен быть коротким (1-3 предложения)
-4. Генерируй авторский ответ в его стилистике
-5. Используй характерные для писателя выражения
-6. Говори от первого лица как сам писатель"""
-            
-            payload = {
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": message}
-                ],
-                "max_tokens": 300,
-                "temperature": 0.9
-            }
-            
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-                "User-Agent": "LiteraryBot/1.0"
-            }
-            
-            print(f"🔄 Запрос Perplexity для: {message[:50]}...")
-            
-            if not self.api_key:
-                print("⚠️ API ключ не найден!")
-                return "Извините, бот не настроен правильно."
-            
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    self.url, 
-                    json=payload, 
-                    headers=headers, 
-                    timeout=aiohttp.ClientTimeout(total=30)
-                ) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        response = data['choices'][0]['message']['content'].strip()
-                        print(f"✅ Perplexity ответ получен: {len(response)} символов")
-                        return response
-                    else:
-                        error_text = await resp.text()
-                        print(f"⚠️ OpenRouter API ошибка {resp.status}")
-                        return self._generate_fallback_response(author_data, message)
-                        
-        except asyncio.TimeoutError:
-            print("⏰ Таймаут Perplexity")
-            return self._generate_fallback_response(author_data, message)
-        except Exception as e:
-            print(f"❌ Ошибка Perplexity: {e}")
-            return self._generate_fallback_response(author_data, message)
+            # Fallback на встроенную нейросеть при ошибке
+            return neural_ai.generate_response(neural_writer_key, message)
     
     def _generate_fallback_response(self, author_data, message):
-        """Простой fallback ответ при ошибке API"""
+        """Простой fallback ответ при ошибке"""
         writer_name = author_data['name']
         message_lower = message.lower()
         
@@ -150,4 +123,3 @@ mega_ai = MegaAI()
 async def generate_literary_response(message, author_data, internet_context=None):
     """Публичная функция для генерации ответа"""
     return await mega_ai.generate_literary_response(message, author_data, internet_context)
-
