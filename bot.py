@@ -62,95 +62,10 @@ def get_writers_keyboard():
     )
     return keyboard
 
-@dp.message(Command("start"))
-async def start_command(message: types.Message):
-    # Сбрасываем сессию при старте
-    user_sessions[message.from_user.id] = None
-    
-    welcome_text = """
-🌟 *Добро пожаловать в литературную нейросеть!* 🌟
-
-Я — автономная нейросеть, которая генерирует ответы в стиле великих русских писателей.
-
-*🧠 Как это работает:*
-• Нейросеть анализирует ваш вопрос
-• Генерирует уникальный ответ в стиле выбранного писателя
-• Использует литературные patterns и vocabulary автора
-• Создает новые, никогда не существовавшие ответы
-
-Выберите писателя и задавайте ЛЮБЫЕ вопросы!
-    """
-    
-    await message.answer(welcome_text, parse_mode="Markdown", reply_markup=get_main_keyboard())
-
-@dp.message(Command("writers"))
-async def show_writers(message: types.Message):
-    await message.answer("🎭 Выберите писателя:", reply_markup=get_writers_keyboard())
-
-@dp.message(lambda message: message.text == "📚 Выбрать писателя")
-async def select_writer_button(message: types.Message):
-    await show_writers(message)
-
-@dp.message(lambda message: message.text == "🔄 Сменить писателя")
-async def change_writer(message: types.Message):
-    user_sessions[message.from_user.id] = None
-    await message.answer("🔄 Писатель сброшен. Выберите нового:", reply_markup=get_writers_keyboard())
-
-@dp.message(lambda message: message.text in ["🖋️ Пушкин", "🎭 Достоевский", "📖 Толстой", "✒️ Чехов", "🔮 Гоголь"])
-async def handle_writer_button(message: types.Message):
-    writer_map = {
-        "🖋️ Пушкин": "пушкин",
-        "🎭 Достоевский": "достоевский", 
-        "📖 Толстой": "толстой",
-        "✒️ Чехов": "чехов",
-        "🔮 Гоголь": "гоголь"
-    }
-    
-    writer = writer_map[message.text]
-    user_sessions[message.from_user.id] = writer
-    
-    writer_names = {
-        "пушкин": "Александр Сергеевич Пушкин",
-        "достоевский": "Фёдор Михайлович Достоевский",
-        "толстой": "Лев Николаевич Толстой", 
-        "чехов": "Антон Павлович Чехов",
-        "гоголь": "Николай Васильевич Гоголь"
-    }
-    
-    await message.answer(
-        f"🎭 *{writer_names[writer]}*\n\n"
-        f"🧠 Нейросеть активирована в стиле {writer_names[writer]}!\n\n"
-        f"Задавайте ЛЮБЫЕ вопросы - нейросеть сгенерирует уникальный ответ в стиле автора!",
-        parse_mode="Markdown",
-        reply_markup=get_main_keyboard()
-    )
-
-@dp.message(lambda message: message.text == "💫 Случайный писатель")
-async def random_writer(message: types.Message):
-    import random
-    writers = ["пушкин", "достоевский", "толстой", "чехов", "гоголь"]
-    selected_writer = random.choice(writers)
-    
-    user_sessions[message.from_user.id] = selected_writer
-    
-    writer_names = {
-        "пушкин": "Александр Сергеевич Пушкин",
-        "достоевский": "Фёдор Михайлович Достоевский", 
-        "толстой": "Лев Николаевич Толстой",
-        "чехов": "Антон Павлович Чехов",
-        "гоголь": "Николай Васильевич Гоголь"
-    }
-    
-    await message.answer(
-        f"🎲 *Случайный выбор: {writer_names[selected_writer]}!*\n\n"
-        f"🧠 Нейросеть генерирует ответы в стиле {writer_names[selected_writer]}\n\n"
-        f"Задавайте вопросы - AI создаст уникальные литературные ответы!",
-        parse_mode="Markdown",
-        reply_markup=get_main_keyboard()
-    )
-
 @dp.message()
 async def handle_message(message: types.Message):
+    print("🔥 ОТЛАДКА: ФУНКЦИЯ handle_message ВЫЗВАНА!")
+    
     user_id = message.from_user.id
     text = message.text
     
@@ -158,13 +73,33 @@ async def handle_message(message: types.Message):
     print(f"👤 Пользователь: {user_id}")
     print(f"📊 Текущая сессия: {user_sessions.get(user_id)}")
     
+    # 🔥 СУПЕР-ПРОВЕРКА ПАПКИ WRITERS ПРИ ЛЮБОМ СООБЩЕНИИ
+    print("🔍 ПРОВЕРКА ПАПКИ WRITERS:")
+    current_dir = os.getcwd()
+    print(f"📂 Текущая директория: {current_dir}")
+    
+    writers_dir_exists = os.path.exists("writers")
+    print(f"📁 Папка writers существует: {writers_dir_exists}")
+    
+    if writers_dir_exists:
+        all_files = os.listdir("writers")
+        print(f"📂 Все файлы в папке writers: {all_files}")
+        
+        # Проверим каждый файл
+        for file in all_files:
+            full_path = f"writers/{file}"
+            print(f"  📄 {file} -> exists: {os.path.exists(full_path)}")
+    
     # Игнорируем служебные кнопки
     if text in ["📚 Выбрать писателя", "🔄 Сменить писателя", "🌟 Рекомендации", "💫 Случайный писатель", "⬅️ Назад"]:
+        print("🔕 Игнорируем служебную кнопку")
         return
     
+    # Остальной код функции остается без изменений...
     # Если уже выбран писатель - генерируем ответ нейросетью
     if user_id in user_sessions and user_sessions[user_id]:
         writer = user_sessions[user_id]
+        # ... остальной код
         
         print(f"🔍 Шаг 1: Загрузка данных автора '{writer}'...")
         
