@@ -98,8 +98,8 @@ class InternetSearcher:
         
         response_lower = ai_response.lower()
         has_unknown_phrase = any(phrase in response_lower for phrase in unknown_phrases)
-           return has_unknown_phrase
-
+        return has_unknown_phrase
+        
     def generate_internet_answer(self, query, search_results, author_style):
         """Генирирует ответ на основе найденной в интернете информации"""
         if not search_results:
