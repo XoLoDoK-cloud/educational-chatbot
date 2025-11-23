@@ -186,19 +186,50 @@ async def about_bot(message: types.Message):
 
 
 @dp.message()
-async def handle_message(message: types.Message):
-    """Main handler"""
-    user_id = message.from_user.id
-    text = message.text
+async def try_direct_writer_input(message: types.Message):
+    """Try to find writer by direct name input"""
+    from comprehensive_knowledge import knowledge, get_expert_answer, get_dialogue_answer
     
+    user_id = message.from_user.id
+    text = message.text.strip()
+    
+    # Try to find writer by name in knowledge base
+    found_writer = knowledge.search_by_name(text)
+    
+    if found_writer:
+        # Writer found by direct input
+        user_sessions[user_id] = found_writer
+        clear_memory(user_id)
+        mode = user_modes.get(user_id, "expert")
+        
+        author_name = knowledge.writers_db[found_writer]['name']
+        
+        if mode == "dialogue":
+            response = get_dialogue_answer(f"Расскажи о себе", author_name)
+        else:
+            response = get_expert_answer(f"Расскажи о {author_name}", found_writer)
+        
+        await message.answer(response, parse_mode="Markdown")
+        return
+    
+    # If no writer found, check if we have an active session
     if user_id not in user_sessions or not user_sessions[user_id]:
         await message.answer(
-            "📖 Пожалуйста, сначала выберите писателя, нажав на кнопку «📚 Выбрать писателя».\n\n"
+            "📖 Пожалуйста, сначала выберите писателя, нажав на кнопку «📚 Выбрать писателя» или напишите его имя напрямую.\n\n"
             "_Он станет основой нашей беседы о литературе и искусстве._",
             reply_markup=get_main_keyboard(),
             parse_mode="Markdown"
         )
         return
+    
+    # Continue with regular message handling
+    await handle_message(message)
+
+
+async def handle_message(message: types.Message):
+    """Main handler"""
+    user_id = message.from_user.id
+    text = message.text
     
     writer_key = user_sessions[user_id]
     author_data = load_author_data(writer_key)
