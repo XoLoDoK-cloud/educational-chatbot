@@ -2,207 +2,280 @@ import logging
 import asyncio
 import json
 import os
-from aiogram import Bot, Dispatcher, types, F
-from aiogram.filters import Command, StateFilter
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import Command
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 from config import BOT_TOKEN
 from ai_openrouter import generate_literary_response
 from flask import Flask
 from threading import Thread
 import sys
-print("🚀 Python путь:", sys.executable)
-print("🚀 Токен первые 10 символов:", BOT_TOKEN[:10])
 
 # Настройка логирования
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+print("🚀 Запуск литературного бота...")
+print(f"🔑 Токен: {BOT_TOKEN[:10]}...")
 
 # Flask для keep-alive
 app = Flask('')
 
 @app.route('/')
 def home():
-    return "Bot is alive!"
+    return "🤖 Literary Bot is ALIVE!"
 
 def run():
     app.run(host='0.0.0.0', port=8080)
 
 def keep_alive():
-    t = Thread(target=run)
+    t = Thread(target=run, daemon=True)
     t.start()
 
 # Инициализация бота
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher(storage=MemoryStorage())
+try:
+    bot = Bot(token=BOT_TOKEN)
+    dp = Dispatcher(storage=MemoryStorage())
+    logger.info("✅ Бот инициализирован")
+except Exception as e:
+    logger.error(f"❌ Ошибка инициализации бота: {e}")
+    exit(1)
 
 # Храним выбор писателя для каждого пользователя
 user_sessions = {}
 
-# Красивая клавиатура
+# Клавиатуры
 def get_main_keyboard():
-    keyboard = ReplyKeyboardMarkup(
+    return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📚 Выбрать писателя"), KeyboardButton(text="🔄 Сменить писателя")],
-            [KeyboardButton(text="🌟 Рекомендации"), KeyboardButton(text="💫 Случайный писатель")]
+            [KeyboardButton(text="📚 Выбрать писателя")],
+            [KeyboardButton(text="🔄 Сменить писателя"), KeyboardButton(text="💫 Случайный писатель")]
         ],
         resize_keyboard=True
     )
-    return keyboard
 
 def get_writers_keyboard():
-    keyboard = ReplyKeyboardMarkup(
+    return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="🖋️ Пушкин"), KeyboardButton(text="🎭 Достоевский")],
             [KeyboardButton(text="📖 Толстой"), KeyboardButton(text="✒️ Чехов")],
-            [KeyboardButton(text="🔮 Гоголь"), KeyboardButton(text="⬅️ Назад")]
+            [KeyboardButton(text="🔮 Гоголь")]
         ],
         resize_keyboard=True
     )
-    return keyboard
 
+# Загрузка данных автора
+def load_author_data(writer):
+    """Загружает данные автора из JSON файла"""
+    try:
+        author_file = f"writers/{writer}.json"
+        if not os.path.exists(author_file):
+            logger.error(f"Файл не найден: {author_file}")
+            return None
+            
+        with open(author_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        logger.info(f"✅ Загружен автор: {data['name']}")
+        return data
+        
+    except Exception as e:
+        logger.error(f"❌ Ошибка загрузки автора {writer}: {e}")
+        return None
+
+# Команды бота
+@dp.message(Command("start"))
+async def start_command(message: types.Message):
+    """Обработчик команды /start"""
+    user_sessions[message.from_user.id] = None
+    
+    welcome_text = """
+🌟 *Добро пожаловать в литературную нейросеть!* 🌟
+
+Я генерирую ответы в стиле великих русских писателей.
+
+*Доступные писатели:*
+• 🖋️ Александр Пушкин
+• 🎭 Фёдор Достоевский  
+• 📖 Лев Толстой
+• ✒️ Антон Чехов
+• 🔮 Николай Гоголь
+
+Выберите писателя и задавайте вопросы!
+    """
+    
+    await message.answer(welcome_text, parse_mode="Markdown", reply_markup=get_main_keyboard())
+    logger.info(f"👤 Пользователь {message.from_user.id} запустил бота")
+
+@dp.message(Command("writers"))
+async def show_writers(message: types.Message):
+    """Показывает список писателей"""
+    await message.answer("🎭 Выберите писателя:", reply_markup=get_writers_keyboard())
+
+# Обработчики кнопок
+@dp.message(lambda message: message.text == "📚 Выбрать писателя")
+async def select_writer_button(message: types.Message):
+    await show_writers(message)
+
+@dp.message(lambda message: message.text == "🔄 Сменить писателя")
+async def change_writer(message: types.Message):
+    user_sessions[message.from_user.id] = None
+    await message.answer("🔄 Писатель сброшен. Выберите нового:", reply_markup=get_writers_keyboard())
+
+@dp.message(lambda message: message.text in ["🖋️ Пушкин", "🎭 Достоевский", "📖 Толстой", "✒️ Чехов", "🔮 Гоголь"])
+async def handle_writer_selection(message: types.Message):
+    """Обработчик выбора писателя"""
+    writer_map = {
+        "🖋️ Пушкин": "пушкин",
+        "🎭 Достоевский": "достоевский", 
+        "📖 Толстой": "толстой",
+        "✒️ Чехов": "чехов",
+        "🔮 Гоголь": "гоголь"
+    }
+    
+    writer_key = message.text
+    writer = writer_map[writer_key]
+    user_id = message.from_user.id
+    
+    # Загружаем данные автора
+    author_data = load_author_data(writer)
+    if not author_data:
+        await message.answer("❌ Ошибка загрузки данных автора")
+        return
+    
+    user_sessions[user_id] = writer
+    
+    response_text = f"""
+🎭 *{author_data['name']}*
+
+🧠 Нейросеть активирована в стиле {author_data['name']}!
+
+{author_data['opening_phrase']}
+
+Задавайте вопросы - я отвечу в стиле автора!
+    """
+    
+    await message.answer(response_text, parse_mode="Markdown", reply_markup=get_main_keyboard())
+    logger.info(f"👤 Пользователь {user_id} выбрал {author_data['name']}")
+
+@dp.message(lambda message: message.text == "💫 Случайный писатель")
+async def random_writer(message: types.Message):
+    """Выбор случайного писателя"""
+    import random
+    writers = ["пушкин", "достоевский", "толстой", "чехов", "гоголь"]
+    selected_writer = random.choice(writers)
+    
+    author_data = load_author_data(selected_writer)
+    if not author_data:
+        await message.answer("❌ Ошибка загрузки данных автора")
+        return
+    
+    user_sessions[message.from_user.id] = selected_writer
+    
+    response_text = f"""
+🎲 *Случайный выбор: {author_data['name']}!*
+
+🧠 Нейросеть генерирует ответы в стиле {author_data['name']}
+
+{author_data['opening_phrase']}
+
+Задавайте вопросы!
+    """
+    
+    await message.answer(response_text, parse_mode="Markdown", reply_markup=get_main_keyboard())
+    logger.info(f"👤 Случайный выбор: {author_data['name']}")
+
+# Основной обработчик сообщений
 @dp.message()
 async def handle_message(message: types.Message):
-    print("🔥 ОТЛАДКА: ФУНКЦИЯ handle_message ВЫЗВАНА!")
-    
+    """Обработчик всех сообщений"""
     user_id = message.from_user.id
     text = message.text
     
-    print(f"🎯 Получено сообщение: '{text}'")
-    print(f"👤 Пользователь: {user_id}")
-    print(f"📊 Текущая сессия: {user_sessions.get(user_id)}")
-    
-    # 🔥 СУПЕР-ПРОВЕРКА ПАПКИ WRITERS ПРИ ЛЮБОМ СООБЩЕНИИ
-    print("🔍 ПРОВЕРКА ПАПКИ WRITERS:")
-    current_dir = os.getcwd()
-    print(f"📂 Текущая директория: {current_dir}")
-    
-    writers_dir_exists = os.path.exists("writers")
-    print(f"📁 Папка writers существует: {writers_dir_exists}")
-    
-    if writers_dir_exists:
-        all_files = os.listdir("writers")
-        print(f"📂 Все файлы в папке writers: {all_files}")
-        
-        # Проверим каждый файл
-        for file in all_files:
-            full_path = f"writers/{file}"
-            print(f"  📄 {file} -> exists: {os.path.exists(full_path)}")
+    logger.info(f"📨 Сообщение от {user_id}: {text}")
     
     # Игнорируем служебные кнопки
-    if text in ["📚 Выбрать писателя", "🔄 Сменить писателя", "🌟 Рекомендации", "💫 Случайный писатель", "⬅️ Назад"]:
-        print("🔕 Игнорируем служебную кнопку")
+    if text in ["📚 Выбрать писателя", "🔄 Сменить писателя", "💫 Случайный писатель"]:
         return
     
-    # Остальной код функции остается без изменений...
-    # Если уже выбран писатель - генерируем ответ нейросетью
-    if user_id in user_sessions and user_sessions[user_id]:
-        writer = user_sessions[user_id]
-        # ... остальной код
-        
-        print(f"🔍 Шаг 1: Загрузка данных автора '{writer}'...")
-        
-        # Показываем статус "печатает"
-        await message.bot.send_chat_action(message.chat.id, "typing")
-        
-        try:
-            # Загружаем данные автора
-            author_file = f"writers/{writer}.json"
-            print(f"📁 Проверяем файл: {author_file}")
-            print(f"📁 Файл существует: {os.path.exists(author_file)}")
-            
-            # 🔥 ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА - список всех файлов в папке
-            print(f"📂 Содержимое папки writers/: {os.listdir('writers')}")
-            
-            if os.path.exists(author_file):
-                with open(author_file, 'r', encoding='utf-8') as f:
-                    author_data = json.load(f)
-                
-                print(f"✅ Данные автора загружены: {author_data['name']}")
-                print(f"🔍 Шаг 2: Вызов нейросети...")
-                
-                # Генерируем ответ через нейросеть
-                ai_response = await generate_literary_response(text, author_data)
-                
-                print(f"✅ Ответ сгенерирован!")
-                print(f"📝 Текст ответа: {ai_response[:200]}...")
-                
-                # Отправляем сгенерированный ответ
-                writer_names = {
-                    "пушкин": "Пушкин",
-                    "достоевский": "Достоевский",
-                    "толстой": "Толстой", 
-                    "чехов": "Чехов",
-                    "гоголь": "Гоголь"
-                }
-                
-                print(f"🔍 Шаг 3: Отправка сообщения...")
-                await message.answer(
-                    f"*{writer_names[writer]}:* {ai_response}",
-                    parse_mode="Markdown"
-                )
-                print(f"✅ Сообщение отправлено!")
-                
-            else:
-                print(f"❌ Файл автора не найден: {author_file}")
-                # 🔥 Показываем какие файлы вообще есть
-                all_files = os.listdir('writers')
-                print(f"📂 Доступные файлы: {all_files}")
-                await message.answer("❌ Файл автора не найден")
-                
-        except Exception as e:
-            print(f"💥 КРИТИЧЕСКАЯ ОШИБКА: {e}")
-            import traceback
-            print(f"📋 Полный трейсбэк: {traceback.format_exc()}")
-            await message.answer(f"⚠️ Произошла ошибка: {str(e)}")
-        
+    # Проверяем выбран ли писатель
+    if user_id not in user_sessions or not user_sessions[user_id]:
+        await message.answer(
+            "🎭 Сначала выберите писателя!\n\nНажмите «📚 Выбрать писателя»",
+            reply_markup=get_main_keyboard()
+        )
         return
     
-    # Выбор писателя по тексту
-    writers = ["пушкин", "достоевский", "толстой", "чехов", "гоголь"]
-    for writer in writers:
-        if writer in text.lower():
-            user_sessions[user_id] = writer
-            writer_names = {
-                "пушкин": "Александр Сергеевич Пушкин",
-                "достоевский": "Фёдор Михайлович Достоевский",
-                "толстой": "Лев Николаевич Толстой",
-                "чехов": "Антон Павлович Чехов", 
-                "гоголь": "Николай Васильевич Гоголь"
-            }
-            
-            await message.answer(
-                f"🎭 *{writer_names[writer]}*\n\n"
-                f"🧠 Нейросеть активирована!\n\n"
-                f"Задавайте вопросы - AI сгенерирует уникальные ответы в стиле {writer_names[writer]}!",
-                parse_mode="Markdown",
-                reply_markup=get_main_keyboard()
-            )
-            return
+    writer = user_sessions[user_id]
     
-    # Если писатель не выбран
-    await message.answer(
-        "🎭 Сначала выберите писателя!\n\n"
-        "Нажмите «📚 Выбрать писателя» или напишите имя автора.",
-        reply_markup=get_main_keyboard()
-    )
+    # Загружаем данные автора
+    author_data = load_author_data(writer)
+    if not author_data:
+        await message.answer("❌ Ошибка загрузки данных автора")
+        return
+    
+    # Показываем статус "печатает"
+    await message.bot.send_chat_action(message.chat.id, "typing")
+    
+    try:
+        logger.info(f"🧠 Генерация ответа в стиле {author_data['name']}")
+        
+        # Генерируем ответ через нейросеть
+        ai_response = await generate_literary_response(text, author_data)
+        
+        if not ai_response or len(ai_response.strip()) == 0:
+            ai_response = "Извините, не удалось сгенерировать ответ. Попробуйте еще раз."
+        
+        logger.info(f"✅ Ответ сгенерирован: {ai_response[:100]}...")
+        
+        # Отправляем ответ
+        writer_names = {
+            "пушкин": "Пушкин",
+            "достоевский": "Достоевский",
+            "толстой": "Толстой", 
+            "чехов": "Чехов",
+            "гоголь": "Гоголь"
+        }
+        
+        response = f"*{writer_names[writer]}:* {ai_response}"
+        await message.answer(response, parse_mode="Markdown")
+        logger.info(f"✅ Ответ отправлен пользователю {user_id}")
+        
+    except Exception as e:
+        logger.error(f"❌ Ошибка генерации ответа: {e}")
+        await message.answer("⚠️ Произошла ошибка при генерации ответа. Попробуйте еще раз.")
 
+# Главная функция
 async def main():
-    # ПРИНУДИТЕЛЬНЫЙ СБРОС
-    await bot.delete_webhook(drop_pending_updates=True)
-    print("✅ Полный сброс выполнен!")
-    
-    # Ждем 5 секунд
-    await asyncio.sleep(5)
-    
-    # Запускаем keep-alive
-    keep_alive()
-    
-    print("🧠 Литературная нейросеть запущена!")
-    print("🎭 Готова генерировать ответы в стиле великих писателей!")
-    
-    await dp.start_polling(bot, allowed_updates=["message", "callback_query"])
+    """Основная функция запуска бота"""
+    try:
+        # Сбрасываем вебхуки
+        await bot.delete_webhook(drop_pending_updates=True)
+        logger.info("✅ Вебхуки сброшены")
+        
+        # Запускаем keep-alive
+        keep_alive()
+        logger.info("✅ Keep-alive запущен")
+        
+        # Запускаем бота
+        logger.info("🧠 Запуск литературной нейросети...")
+        print("🎭 Бот готов к работе! Найдите @LiteraryGeniusBot в Telegram")
+        
+        await dp.start_polling(bot, allowed_updates=["message", "callback_query"])
+        
+    except Exception as e:
+        logger.error(f"❌ Критическая ошибка: {e}")
+    finally:
+        await bot.session.close()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("⏹️ Бот остановлен пользователем")
+    except Exception as e:
+        logger.error(f"💥 Фатальная ошибка: {e}")
