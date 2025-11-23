@@ -327,13 +327,26 @@ class WritersExpertBase:
             "default": "✨ Давайте погрузимся в мир литературного гения:"
         }
     
-    def search_by_work(self, question):
-        """Search writer by their work"""
+    def search_by_name(self, question):
+        """Search writer by their name"""
         q_lower = question.lower()
         for db_writer, info in self.writers_db.items():
+            full_name = info['name'].lower()
+            if db_writer in q_lower or full_name in q_lower or q_lower in full_name:
+                return db_writer, info
+        return None, None
+    
+    def search_by_work(self, question):
+        """Search writer by their work or dates"""
+        q_lower = question.lower()
+        for db_writer, info in self.writers_db.items():
+            # Search by works
             for work in info['key_works']:
                 if work.lower() in q_lower or q_lower in work.lower():
                     return db_writer, info
+            # Search by dates
+            if info['dates'] in question:
+                return db_writer, info
         return None, None
 
     def get_writer_response(self, question, writer_key):
