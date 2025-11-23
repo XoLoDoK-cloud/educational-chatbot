@@ -246,13 +246,16 @@ class NeuralWriter:
             ]
         }
         
-          writer_endings = endings.get("пушкин", [", не правда ли?", ", как мне кажется."])  # default
+        writer_endings = endings.get("пушкин", [", не правда ли?", ", как мне кажется."])  # default
         for writer, ends in endings.items():
             if writer in str(writer_data):
                 writer_endings = ends
                 break
         
         return random.choice(writer_endings) if writer_endings else ", как мне кажется."
+
+# Создаем нейросеть
+neural_ai = NeuralWriter()
 
 # Создаем нейросеть
 neural_ai = NeuralWriter()
