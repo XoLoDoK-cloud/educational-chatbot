@@ -1,137 +1,201 @@
+"""
+Literary AI Bot - Telegram Interface
+Universal expert with Russian writer personalities
+"""
 import logging
 import asyncio
+import random
 import json
 import os
+from pathlib import Path
+
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
-from config import BOT_TOKEN
-from ai_openrouter import generate_universal_response
-from flask import Flask
-from threading import Thread
 
-# Настройка
+from config import BOT_TOKEN
+from universal_brain import generate_response, clear_memory
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Keep-alive
-app = Flask('')
-@app.route('/') 
-def home(): return "🤖 AI Expert Bot is ALIVE!"
-def run(): app.run(host='0.0.0.0', port=8080)
-def keep_alive(): Thread(target=run, daemon=True).start()
-
-# Инициализация бота
+# Bot setup
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
+
+# Writers
+writers = {
+    "pushkin": "Александр Пушкин",
+    "dostoevsky": "Фёдор Достоевский",
+    "tolstoy": "Лев Толстой",
+    "chekhov": "Антон Чехов",
+    "gogol": "Николай Гоголь"
+}
+
 user_sessions = {}
 
-# Клавиатуры
-def get_main_keyboard():
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="🎭 Выбрать писателя")],
-            [KeyboardButton(text="🔄 Сменить стиль")]
-        ], 
-        resize_keyboard=True
-    )
 
-def get_writers_keyboard():
+def load_author_data(writer_key):
+    """Load author data from JSON"""
+    try:
+        with open(f"writers/{writer_key}.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        return {"name": writers.get(writer_key, "Unknown")}
+
+
+def get_main_keyboard():
+    """Main menu keyboard"""
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="🖋️ Пушкин"), KeyboardButton(text="🎭 Достоевский")],
-            [KeyboardButton(text="📖 Толстой"), KeyboardButton(text="✒️ Чехов")],
-            [KeyboardButton(text="🔮 Гоголь")]
+            [KeyboardButton(text="📚 Выбрать писателя")],
+            [KeyboardButton(text="🔄 Сменить писателя")],
+            [KeyboardButton(text="💫 Случайный писатель")]
         ],
         resize_keyboard=True
     )
 
-# Загрузка данных автора
-def load_author(writer):
-    try:
-        with open(f"writers/{writer}.json", 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except:
-        return None
 
-# КОМАНДЫ БОТА
+def get_writers_keyboard():
+    """Writers selection keyboard"""
+    keyboard = []
+    for key, name in writers.items():
+        keyboard.append([KeyboardButton(text=name)])
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+
 @dp.message(Command("start"))
-async def start_cmd(message: types.Message):
-    user_sessions[message.from_user.id] = None
-    welcome = """
-🧠 *LiteraryAI Expert* - УНИВЕРСАЛЬНЫЙ AI-ПОМОЩНИК
-
-Я знаю ответы на ЛЮБЫЕ вопросы как ChatGPT, но отвечаю в стиле великих писателей!
-
-• 🔬 Наука и техника
-• 📚 История и искусство  
-• 💻 Программирование
-• 🌍 География и культура
-• 🎯 Анализ и объяснения
-
-*Выберите писателя и задавайте ВОПРОСЫ ЛЮБОЙ СЛОЖНОСТИ!*
-    """
-    await message.answer(welcome, parse_mode="Markdown", reply_markup=get_main_keyboard())
-
-@dp.message(Command("writers"))
-async def writers_cmd(message: types.Message):
-    await message.answer("🎭 Выберите стиль ответа:", reply_markup=get_writers_keyboard())
-
-# ОБРАБОТЧИКИ КНОПОК
-@dp.message(lambda msg: msg.text == "🎭 Выбрать писателя")
-async def select_writer(msg: types.Message):
-    await writers_cmd(msg)
-
-@dp.message(lambda msg: msg.text in ["🖋️ Пушкин", "🎭 Достоевский", "📖 Толстой", "✒️ Чехов", "🔮 Гоголь"])
-async def set_writer(msg: types.Message):
-    writer_map = {
-        "🖋️ Пушкин": "пушкин", "🎭 Достоевский": "достоевский",
-        "📖 Толстой": "толстой", "✒️ Чехов": "чехов", "🔮 Гоголь": "гоголь"
-    }
-    writer = writer_map[msg.text]
-    user_sessions[msg.from_user.id] = writer
-    author = load_author(writer)
-    await msg.answer(f"✅ *{author['name']} активирован!*\n\nЗадавайте ЛЮБЫЕ вопросы - я знаю ответы на всё! 🧠", 
-                    parse_mode="Markdown", reply_markup=get_main_keyboard())
-
-@dp.message(lambda msg: msg.text == "🔄 Сменить стиль")
-async def change_style(msg: types.Message):
-    user_sessions[msg.from_user.id] = None
-    await msg.answer("🔄 Стиль сброшен. Выберите нового писателя:", reply_markup=get_writers_keyboard())
-
-# ГЛАВНЫЙ ОБРАБОТЧИК СООБЩЕНИЙ
-@dp.message()
-async def handle_all_questions(message: types.Message):
+async def cmd_start(message: types.Message):
+    """Start command"""
     user_id = message.from_user.id
-    question = message.text.strip()
+    logger.info(f"User {user_id} started bot")
     
-    # Проверяем выбран ли писатель
+    clear_memory(user_id)
+    user_sessions[user_id] = None
+    
+    await message.answer(
+        "🎭 Добро пожаловать в бота Литературных Экспертов!\n\n"
+        "Выберите русского писателя, и он ответит на ваши вопросы с абсолютной уверенностью и знанием.",
+        reply_markup=get_main_keyboard()
+    )
+
+
+@dp.message(lambda m: m.text == "📚 Выбрать писателя")
+async def cmd_select_writer(message: types.Message):
+    """Select writer"""
+    await message.answer(
+        "Выберите писателя:",
+        reply_markup=get_writers_keyboard()
+    )
+
+
+@dp.message(lambda m: m.text in writers.values())
+async def set_writer(message: types.Message):
+    """Set selected writer"""
+    user_id = message.from_user.id
+    writer_name = message.text
+    
+    # Find key by name
+    writer_key = None
+    for key, name in writers.items():
+        if name == writer_name:
+            writer_key = key
+            break
+    
+    if writer_key:
+        user_sessions[user_id] = writer_key
+        clear_memory(user_id)
+        
+        author_data = load_author_data(writer_key)
+        await message.answer(
+            f"✅ Выбран: {author_data['name']}\n\n"
+            f"Теперь вы можете задавать вопросы, и {author_data['name']} будет отвечать как всезнающий эксперт!",
+            reply_markup=get_main_keyboard()
+        )
+
+
+@dp.message(lambda m: m.text == "🔄 Сменить писателя")
+async def cmd_change_writer(message: types.Message):
+    """Change writer"""
+    await cmd_select_writer(message)
+
+
+@dp.message(lambda m: m.text == "💫 Случайный писатель")
+async def cmd_random_writer(message: types.Message):
+    """Random writer"""
+    user_id = message.from_user.id
+    writer_key = random.choice(list(writers.keys()))
+    user_sessions[user_id] = writer_key
+    clear_memory(user_id)
+    
+    author_data = load_author_data(writer_key)
+    await message.answer(
+        f"🎲 Случайно выбран: {author_data['name']}",
+        reply_markup=get_main_keyboard()
+    )
+
+
+@dp.message()
+async def handle_message(message: types.Message):
+    """Main message handler"""
+    user_id = message.from_user.id
+    text = message.text
+    
+    logger.info(f"Message from {user_id}: {text[:50]}")
+    
+    # Check writer selected
     if user_id not in user_sessions or not user_sessions[user_id]:
-        await message.answer("🎭 Сначала выберите стиль ответа!", reply_markup=get_main_keyboard())
+        await message.answer(
+            "🎭 Сначала выберите писателя!\n\nНажмите «📚 Выбрать писателя»",
+            reply_markup=get_main_keyboard()
+        )
         return
     
-    writer = user_sessions[user_id]
-    author_data = load_author(writer)
+    writer_key = user_sessions[user_id]
+    author_data = load_author_data(writer_key)
     
-    # Показываем "печатает"
+    # Show typing
     await message.bot.send_chat_action(message.chat.id, "typing")
     
     try:
-        # 🔥 УНИВЕРСАЛЬНЫЙ ОТВЕТ НА ЛЮБОЙ ВОПРОС
-        expert_response = await generate_universal_response(question, author_data)
-        await message.answer(expert_response, parse_mode="Markdown")
+        logger.info(f"Generating response from {author_data['name']}")
+        
+        # Generate response
+        response = await generate_response(user_id, text, author_data)
+        
+        if not response:
+            response = "Извините, ошибка при генерации ответа."
+        
+        # Send response
+        writer_names = {
+            "pushkin": "🎭 Пушкин",
+            "dostoevsky": "🎭 Достоевский",
+            "tolstoy": "🎭 Толстой",
+            "chekhov": "🎭 Чехов",
+            "gogol": "🎭 Гоголь"
+        }
+        
+        header = writer_names.get(writer_key, "Писатель")
+        await message.answer(f"{header}:\n\n{response}", parse_mode="Markdown")
+        
+        logger.info(f"Response sent to {user_id}")
         
     except Exception as e:
-        await message.answer("⚡ Произошла ошибка, но как эксперт продолжаю работать!")
+        logger.error(f"Error: {e}")
+        await message.answer("⚠️ Ошибка при обработке. Попробуйте ещё раз.")
 
-# ЗАПУСК БОТА
+
 async def main():
-    await bot.delete_webhook(drop_pending_updates=True)
-    keep_alive()
-    logger.info("🚀 УНИВЕРСАЛЬНЫЙ AI-ЭКСПЕРТ ЗАПУЩЕН!")
-    print("🧠 Бот готов! Задавайте ЛЮБЫЕ вопросы!")
+    """Start bot"""
+    print("🚀 Запуск бота...")
+    print(f"🔑 Токен: {BOT_TOKEN[:20]}...")
+    print("🎭 Режим: Литературные эксперты")
+    print("=" * 50)
+    
+    # Start polling
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
