@@ -8,14 +8,69 @@ class MegaAI:
         self.api_key = os.getenv("OPENROUTER_API_KEY")
         self.url = "https://openrouter.ai/api/v1/chat/completions"
     
-    async def generate_literary_response(self, message, author_data):
-        """Генерирует ответ в стиле автора"""
+    async def generate_literary_response(self, message, author_data, internet_context=None):
+        """Генирирует ответ в стиле автора через OpenRouter API"""
         try:
-            # Используем локальные ответы как fallback
-            response = self._get_mega_response(author_data['name'].lower(), message)
-            return response
+            if not self.api_key:
+                print("❌ OPENROUTER_API_KEY не найден!")
+                return "Извините, бот не настроен правильно. Нужен API ключ OpenRouter."
+            
+            # Выбираем модель в зависимости от типа вопроса
+            if internet_context:
+                model = "perplexity/llama-3.1-sonar-small-128k-online"
+                print(f"🌐 Используется Perplexity для поиска в интернете")
+            else:
+                model = "google/gemini-2.0-flash-exp"
+                print(f"⚡ Используется Gemini Flash")
+            
+            # Создаём простой системный промпт
+            system_prompt = f"""Ты - {author_data['name']}, русский классический писатель.
+Отвечай КОРОТКО (1-3 предложения), естественно, от первого лица.
+Не используй длинные философские отступления."""
+            
+            payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": message}
+                ],
+                "max_tokens": 300,
+                "temperature": 0.9
+            }
+            
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            print(f"🔄 Запрос к OpenRouter: модель={model}, вопрос={message[:50]}...")
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    self.url, 
+                    json=payload, 
+                    headers=headers, 
+                    timeout=aiohttp.ClientTimeout(total=20)
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        response = data['choices'][0]['message']['content'].strip()
+                        print(f"✅ Ответ получен: {response[:80]}...")
+                        return response
+                    else:
+                        error_text = await resp.text()
+                        print(f"❌ Ошибка API {resp.status}: {error_text[:200]}")
+                        return f"Извините, ошибка при генерации ответа (код {resp.status})"
+                        
+        except asyncio.TimeoutError:
+            print("⏰ Таймаут запроса к OpenRouter")
+            return "Извините, запрос занял слишком много времени."
         except Exception as e:
+            print(f"❌ Критическая ошибка: {e}")
+            import traceback
+            traceback.print_exc()
             return f"Извините, произошла ошибка: {str(e)}"
+    
     
     def _get_mega_response(self, writer, user_message):
         """МЕГА-КАЧЕСТВЕННЫЕ ОТВЕТЫ С ОГРОМНЫМИ ТЕКСТАМИ"""
@@ -171,6 +226,6 @@ class MegaAI:
 
 mega_ai = MegaAI()
 
-async def generate_literary_response(message, author_data):
+async def generate_literary_response(message, author_data, internet_context=None):
     """Функция для импорта в bot.py"""
-    return await mega_ai.generate_literary_response(message, author_data)
+    return await mega_ai.generate_literary_response(message, author_data, internet_context)
