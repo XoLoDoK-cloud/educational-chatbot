@@ -246,7 +246,7 @@ class NeuralWriter:
             ]
         }
         
-         writer_endings = endings.get("пушкин", [", не правда ли?", ", как мне кажется."])  # default
+          writer_endings = endings.get("пушкин", [", не правда ли?", ", как мне кажется."])  # default
         for writer, ends in endings.items():
             if writer in str(writer_data):
                 writer_endings = ends
