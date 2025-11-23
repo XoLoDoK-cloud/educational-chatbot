@@ -1,3 +1,6 @@
+import sys
+print("🚀 Python путь:", sys.executable)
+print("🚀 Токен первые 10 символов:", BOT_TOKEN[:10])
 import logging
 import asyncio
 import json
