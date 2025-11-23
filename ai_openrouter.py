@@ -119,6 +119,16 @@ class MegaAI:
     def _generate_fallback_response(self, author_data, message):
         """Простой fallback ответ при ошибке API"""
         writer_name = author_data['name']
+        message_lower = message.lower()
+        
+        # Проверяем, есть ли вопрос о первом произведении
+        if any(word in message_lower for word in ["первое произведение", "первая работа", "начало творчества", "первый роман"]):
+            if 'first_work' in author_data:
+                first_work = author_data['first_work']
+                year = author_data.get('first_work_year', '')
+                year_str = f" в {year} году" if year else ""
+                return f"Моё первое произведение - '{first_work}'{year_str}. Оно открыло для меня путь к литературному успеху."
+        
         responses = {
             "pushkin": f"О, какой интересный вопрос! {writer_name} обдумывает это с поэтической грацией.",
             "dostoevsky": f"Это глубокий вопрос... {writer_name} видит в нём отражение человеческой природы.",
@@ -140,3 +150,4 @@ mega_ai = MegaAI()
 async def generate_literary_response(message, author_data, internet_context=None):
     """Публичная функция для генерации ответа"""
     return await mega_ai.generate_literary_response(message, author_data, internet_context)
+
