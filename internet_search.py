@@ -86,11 +86,11 @@ class InternetSearcher:
         # Проверяем, является ли вопрос фактологическим
         is_factual_question = any(keyword in question_lower for keyword in factual_keywords)
         
-        # Если это явно фактологический вопрос - ищем в интернете
+        # Если это явно фактологический вопрос - ВСЕГДА ищем в интернете
         if is_factual_question:
             return True
         
-        # Иначе проверяем, есть ли фразы незнания в ответе
+        # Иначе проверяем, есть ли фразы незнания в ответе (даже для философских вопросов)
         unknown_phrases = [
             "не знаю", "не уверен", "не могу сказать", "не имею информации",
             "не располагаю данными", "затрудняюсь ответить", "гадать", "предположить"
@@ -98,7 +98,7 @@ class InternetSearcher:
         
         response_lower = ai_response.lower()
         has_unknown_phrase = any(phrase in response_lower for phrase in unknown_phrases)
-        return has_unknown_phrase and is_factual_question
+       return has_unknown_phrase
 
     def generate_internet_answer(self, query, search_results, author_style):
         """Генирирует ответ на основе найденной в интернете информации"""
