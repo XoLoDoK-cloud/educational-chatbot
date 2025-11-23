@@ -130,11 +130,11 @@ async def change_writer(message: types.Message):
 async def handle_writer_selection(message: types.Message):
     """Обработчик выбора писателя"""
     writer_map = {
-        "🖋️ Пушкин": "пушкин",
-        "🎭 Достоевский": "достоевский", 
-        "📖 Толстой": "толстой",
-        "✒️ Чехов": "чехов",
-        "🔮 Гоголь": "гоголь"
+         "🖋️ Пушкин": "pushkin",
+        "🎭 Достоевский": "dostoevsky", 
+        "📖 Толстой": "tolstoy",
+        "✒️ Чехов": "chekhov",
+        "🔮 Гоголь": "gogol"
     }
     
     writer_key = message.text
@@ -166,7 +166,7 @@ async def handle_writer_selection(message: types.Message):
 async def random_writer(message: types.Message):
     """Выбор случайного писателя"""
     import random
-    writers = ["пушкин", "достоевский", "толстой", "чехов", "гоголь"]
+    writers = ["pushkin", "dostoevsky", "tolstoy", "chekhov", "gogol"]
     selected_writer = random.choice(writers)
     
     author_data = load_author_data(selected_writer)
@@ -234,14 +234,14 @@ async def handle_message(message: types.Message):
         
         # Отправляем ответ
         writer_names = {
-            "пушкин": "Пушкин",
-            "достоевский": "Достоевский",
-            "толстой": "Толстой", 
-            "чехов": "Чехов",
-            "гоголь": "Гоголь"
+            "pushkin": "Пушкин",
+            "dostoevsky": "Достоевский",
+            "tolstoy": "Толстой", 
+            "chekhov": "Чехов",
+            "gogol": "Гоголь"
         }
         
-        response = f"*{writer_names[writer]}:* {ai_response}"
+        response = f"*{writer_names.get(writer, 'Автор')}:* {ai_response}"
         await message.answer(response, parse_mode="Markdown")
         logger.info(f"✅ Ответ отправлен пользователю {user_id}")
         
