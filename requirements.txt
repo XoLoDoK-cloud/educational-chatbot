@@ -6,3 +6,8 @@ beautifulsoup4
 aiogram
 aiogram
 python-dotenv
+aiogram
+aiohttp
+beautifulsoup4
+flask
+python-dotenv
