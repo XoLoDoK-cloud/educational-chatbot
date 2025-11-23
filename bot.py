@@ -7,7 +7,7 @@ from aiogram.filters import Command
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 from config import BOT_TOKEN
-from ai_expert import generate_expert_response
+from expert_brain import generate_omniscient_response
 import sys
 
 # Настройка логирования
@@ -209,10 +209,10 @@ async def handle_message(message: types.Message):
     await message.bot.send_chat_action(message.chat.id, "typing")
     
     try:
-        logger.info(f"🧠 Генерация экспертного ответа в стиле {author_data['name']}")
+        logger.info(f"🧠 Генерация всезнающего ответа в стиле {author_data['name']}")
         
-        # Генерируем ответ через Expert систему (гарантированно точный)
-        ai_response = await generate_expert_response(text, author_data)
+        # Генерируем ответ через Expert Brain (всезнающий)
+        ai_response = await generate_omniscient_response(text, author_data)
         
         if not ai_response or len(ai_response.strip()) == 0:
             ai_response = "Извините, не удалось сгенерировать ответ. Попробуйте еще раз."
