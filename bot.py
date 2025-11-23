@@ -1,6 +1,3 @@
-import sys
-print("🚀 Python путь:", sys.executable)
-print("🚀 Токен первые 10 символов:", BOT_TOKEN[:10])
 import logging
 import asyncio
 import json
@@ -15,6 +12,9 @@ from config import BOT_TOKEN
 from ai_openrouter import generate_literary_response
 from flask import Flask
 from threading import Thread
+import sys
+print("🚀 Python путь:", sys.executable)
+print("🚀 Токен первые 10 символов:", BOT_TOKEN[:10])
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
