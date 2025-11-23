@@ -20,3 +20,22 @@ externalPort = 80
 runButton = "Project"
 
 [[workflows.workflow]]
+
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Literary Bot"
+
+[[workflows.workflow]]
+name = "Literary Bot"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 start.py"
+
+[workflows.workflow.metadata]
+outputType = "console"
