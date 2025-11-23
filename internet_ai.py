@@ -286,4 +286,4 @@ class InternetWriterAI:
             "чехов": [", как я наблюдаю.", ", если заметить.", ", что интересно."],
             "гоголь": [", представьте себе.", ", как это ни удивительно.", ", что за диковина!"]
         }
-        return random.choice(endings.get(writer, [".
+        return random.choice(endings.get(writer, ["."]))
