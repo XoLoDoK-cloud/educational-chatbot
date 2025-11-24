@@ -24,9 +24,9 @@ async def get_wikipedia_context(query: str) -> str:
                 'format': 'json',
                 'titles': query,
                 'prop': 'extracts',
-                'exintro': True,
-                'explaintext': True,
-                'redirects': True
+                'exintro': 1,
+                'explaintext': 1,
+                'redirects': 1
             }
             
             async with session.get('https://en.wikipedia.org/w/api.php', params=params) as resp:
