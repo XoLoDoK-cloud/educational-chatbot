@@ -349,18 +349,42 @@ LITERATURE_DB = {
 
 def get_writer_knowledge(writer_name: str) -> dict | None:
     """Get comprehensive knowledge about a writer - supports English and Russian names"""
-    # Russian name mappings
+    # Russian name mappings (extended with variations)
     russian_to_key = {
         'пушкин': 'aleksandr_pushkin',
         'толстой': 'lev_tolstoy',
+        'толстого': 'lev_tolstoy',
+        'толстогo': 'lev_tolstoy',
         'достоевский': 'fedor_dostoevsky',
+        'достоевского': 'fedor_dostoevsky',
         'чехов': 'anton_chekhov',
+        'чехова': 'anton_chekhov',
         'гоголь': 'nikolai_gogol',
+        'гоголя': 'nikolai_gogol',
         'александр': 'aleksandr_pushkin',
         'лев': 'lev_tolstoy',
         'фёдор': 'fedor_dostoevsky',
+        'федор': 'fedor_dostoevsky',
         'антон': 'anton_chekhov',
         'николай': 'nikolai_gogol',
+        'пушкина': 'aleksandr_pushkin',
+        'достоевски': 'fedor_dostoevsky',
+    }
+    
+    # Western writers extended
+    western_names = {
+        'shakespeare': 'william_shakespeare',
+        'shakespeare\'s': 'william_shakespeare',
+        'шекспир': 'william_shakespeare',
+        'austen': 'jane_austen',
+        'остин': 'jane_austen',
+        'jane': 'jane_austen',
+        'dickens': 'charles_dickens',
+        'диккенс': 'charles_dickens',
+        'kafka': 'franz_kafka',
+        'кафка': 'franz_kafka',
+        'fitzgerald': 'f_scott_fitzgerald',
+        'фицджеральд': 'f_scott_fitzgerald',
     }
     
     query_lower = writer_name.lower()
@@ -368,6 +392,13 @@ def get_writer_knowledge(writer_name: str) -> dict | None:
     # Check if it's a Russian name
     for russian_name, key in russian_to_key.items():
         if russian_name in query_lower:
+            for region, writers in LITERATURE_DB["classic_authors"].items():
+                if key in writers:
+                    return writers[key]
+    
+    # Check western names
+    for western_name, key in western_names.items():
+        if western_name in query_lower:
             for region, writers in LITERATURE_DB["classic_authors"].items():
                 if key in writers:
                     return writers[key]
