@@ -12,11 +12,14 @@ class SmartResponder:
     # Категории вопросов
     ABOUT_SELF_PATTERNS = [
         r'расскажи.*о\s*себе',
+        r'о\s+себе',
         r'кто\s+ты',
         r'tell.*about.*yourself',
         r'who.*are.*you',
         r'что\s+ты',
         r'какой\s+ты',
+        r'твоя\s+личность',
+        r'расскажи\s+о\s+себе',
     ]
     
     FIRST_WORK_PATTERNS = [
@@ -33,8 +36,9 @@ class SmartResponder:
         r'основные\s+работы',
         r'major.*works',
         r'best.*works',
-        r'создал',
-        r'написал',
+        r'главные\s+работы',
+        r'произведения',
+        r'романы',
     ]
     
     BIOGRAPHY_PATTERNS = [
@@ -44,6 +48,10 @@ class SmartResponder:
         r'life',
         r'родился',
         r'когда.*жил',
+        r'расскажи.*о.*своей\s+жизни',
+        r'tell.*about.*life',
+        r'история.*жизни',
+        r'жизненный\s+путь',
     ]
     
     INFLUENCE_PATTERNS = [
