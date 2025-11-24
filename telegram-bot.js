@@ -7,11 +7,16 @@ const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 const openai = new OpenAI({
   apiKey: process.env.OPENROUTER_API_KEY,
   baseURL: 'https://openrouter.io/api/v1',
+  defaultHeaders: {
+    'HTTP-Referer': 'https://replit.com',
+    'X-Title': 'Writer Chat Bot'
+  }
 });
 
 // Store user sessions
 const userSessions = {}; // { userId: { writerId, conversationHistory, corrections } }
 const userCorrections = {}; // { userId: [ corrections ] }
+const userFeedback = {}; // Track what ais doing well/poorly
 
 // Get writer list
 const writers = Object.keys(writersKnowledge).map(key => ({
@@ -19,11 +24,26 @@ const writers = Object.keys(writersKnowledge).map(key => ({
   name: writersKnowledge[key].name
 }));
 
+// Enhanced system prompt with self-correction
+const enhancedSystemPrompt = (writerId, learningContext) => {
+  const basePrompt = systemPromptTemplate(writerId, learningContext);
+  
+  return `${basePrompt}
+
+SELF-CORRECTION GUIDELINES:
+1. Always double-check factual information before answering
+2. If uncertain about dates, names, or plot details - verify from your knowledge
+3. If you detect a potential error in your response - CORRECT IT IMMEDIATELY
+4. Format corrections clearly: "Upon reflection, I should clarify that..."
+5. When correcting yourself, acknowledge the correction naturally
+6. Never make up details if unsure - admit uncertainty instead`;
+};
+
 // Start command
 bot.start((ctx) => {
   ctx.reply(
-    '👋 Добро пожаловать! Я могу познакомить вас с великими писателями.\n\n' +
-    'Выберите писателя для беседы:',
+    '👋 Добро пожаловать! Я помогу вам поговорить с великими писателями.\n\n' +
+    '📚 Выберите писателя для беседы:',
     {
       reply_markup: {
         inline_keyboard: writers.map(writer => [
@@ -38,13 +58,14 @@ bot.start((ctx) => {
 bot.help((ctx) => {
   ctx.reply(
     '📚 *Команды:*\n\n' +
-    '/start - Начать беседу с писателем\n' +
-    '/help - Эта справка\n' +
-    '/stats - Статистика обучений\n' +
-    '/about - Информация о текущем писателе\n\n' +
-    '*Система обучения:*\n' +
-    'Если я ошибся, ответьте: ❌ [правильный ответ]\n' +
-    'Если ответ был верный: ✅\n',
+    '/start - Выбрать писателя\n' +
+    '/help - Справка\n' +
+    '/stats - Статистика\n' +
+    '/about - О писателе\n\n' +
+    '*Обучение нейронки:*\n' +
+    '✅ - Ответ правильный\n' +
+    '❌ [ответ] - Исправление\n\n' +
+    '_Примечание: нейронка сама исправляет ошибки_',
     { parse_mode: 'Markdown' }
   );
 });
@@ -53,13 +74,21 @@ bot.help((ctx) => {
 bot.command('stats', (ctx) => {
   const userId = ctx.from.id;
   const corrections = userCorrections[userId] || [];
+  const currentWriter = userSessions[userId]?.writerId;
   
-  ctx.reply(
-    `📊 *Статистика:*\n\n` +
-    `Всего исправлений: ${corrections.length}\n` +
-    `Текущий писатель: ${userSessions[userId]?.writerId ? writersKnowledge[userSessions[userId].writerId].name : 'Не выбран'}\n`,
-    { parse_mode: 'Markdown' }
-  );
+  let statsText = `📊 *Статистика обучения:*\n\n`;
+  statsText += `Всего исправлений: ${corrections.length}\n`;
+  
+  if (currentWriter) {
+    const writerCorrections = corrections.filter(c => c.writerId === currentWriter);
+    statsText += `Исправлений для ${writersKnowledge[currentWriter].name}: ${writerCorrections.length}\n`;
+  }
+  
+  if (corrections.length > 0) {
+    statsText += `\n_Нейронка улучшается!_ 🧠`;
+  }
+  
+  ctx.reply(statsText, { parse_mode: 'Markdown' });
 });
 
 // About command
@@ -68,18 +97,17 @@ bot.command('about', (ctx) => {
   const session = userSessions[userId];
   
   if (!session || !session.writerId) {
-    ctx.reply('Выберите писателя сначала!');
+    ctx.reply('Выберите писателя сначала с /start');
     return;
   }
   
   const writer = writersKnowledge[session.writerId];
-  ctx.reply(
-    `*${writer.name}*\n\n` +
-    `${writer.fullBio}\n\n` +
-    `*Основные произведения:*\n${Object.keys(writer.majorWorks).join(', ')}\n\n` +
-    `*Темы:*\n${writer.themes.join(', ')}`,
-    { parse_mode: 'Markdown' }
-  );
+  let aboutText = `*${writer.name}*\n\n`;
+  aboutText += `${writer.fullBio}\n\n`;
+  aboutText += `*Произведения:*\n`;
+  aboutText += Object.keys(writer.majorWorks).slice(0, 5).join(', ');
+  
+  ctx.reply(aboutText, { parse_mode: 'Markdown' });
 });
 
 // Writer selection
@@ -91,7 +119,7 @@ bot.on('callback_query', async (ctx) => {
     const writerId = data.replace('writer_', '');
     
     if (!writersKnowledge[writerId]) {
-      ctx.answerCbQuery('Писатель не найден');
+      ctx.answerCbQuery('❌ Писатель не найден');
       return;
     }
     
@@ -113,22 +141,24 @@ bot.on('callback_query', async (ctx) => {
       content: greeting
     });
     
-    ctx.answerCbQuery();
-    ctx.reply(`✅ Вы выбрали *${writer.name}*\n\n${greeting}`, {
+    ctx.answerCbQuery('✅ Писатель выбран');
+    ctx.reply(`✨ *${writer.name}*\n\n${greeting}`, {
       parse_mode: 'Markdown'
     });
   }
   
   if (data.startsWith('feedback_')) {
-    const [, action, msgId] = data.split('_');
+    const [, action] = data.split('_');
     ctx.answerCbQuery();
     
     if (action === 'correct') {
-      ctx.reply('✅ Спасибо! Ответ был верным.');
+      ctx.reply('✅ Спасибо за подтверждение! Я рад, что мой ответ был полезен.');
     } else if (action === 'incorrect') {
       ctx.reply(
-        'Понял, я ошибся. Напишите правильный ответ в формате:\n' +
-        '❌ [правильный ответ]'
+        '❌ Помогите мне улучшиться! Ответьте в формате:\n\n' +
+        '`❌ [ваш правильный ответ или уточнение]`\n\n' +
+        '_Например: ❌ На самом деле это произведение написано в 1860 году_',
+        { parse_mode: 'Markdown' }
       );
     }
   }
@@ -138,6 +168,8 @@ bot.on('callback_query', async (ctx) => {
 bot.on('message', async (ctx) => {
   const userId = ctx.from.id;
   const message = ctx.message.text;
+  
+  if (!message) return;
   
   // Handle feedback
   if (message.startsWith('✅')) {
@@ -171,8 +203,9 @@ bot.on('message', async (ctx) => {
     });
     
     ctx.reply(
-      `✅ Спасибо за исправление! Я запомнил это и буду учитывать в будущих ответах.\n\n` +
-      `📚 Всего исправлений: ${userCorrections[userId].length}`
+      `✅ Спасибо за исправление! Я запомнил это.\n\n` +
+      `📚 Всего исправлений: ${userCorrections[userId].length}\n\n` +
+      `🧠 Я стану более точным благодаря вам!`
     );
     return;
   }
@@ -194,43 +227,66 @@ bot.on('message', async (ctx) => {
   }
   
   // Show typing indicator
-  ctx.sendChatAction('typing');
+  await ctx.sendChatAction('typing');
   
   try {
-    // Build learning context
+    // Build learning context with MORE emphasis on corrections
     let learningContext = '';
     const corrections = userCorrections[userId] || [];
     const writerCorrections = corrections
       .filter(c => c.writerId === session.writerId)
-      .slice(-5);
+      .slice(-10); // Use last 10 corrections for better learning
     
     if (writerCorrections.length > 0) {
-      learningContext = `PREVIOUS CORRECTIONS FROM USER (LEARN FROM THESE):\n${writerCorrections
-        .map(c => `- Correct answer: "${c.correction}"`)
-        .join('\n')}\n`;
+      learningContext = `CRITICAL - USER CORRECTIONS TO REMEMBER (THESE ARE IMPORTANT):\n`;
+      writerCorrections.forEach((c, idx) => {
+        learningContext += `${idx + 1}. ${c.correction}\n`;
+      });
+      learningContext += `\nVERY IMPORTANT: Make sure you know and use these corrections in your responses!\n`;
     }
     
-    // Create system prompt
-    const systemPrompt = systemPromptTemplate(session.writerId, learningContext);
+    // Create enhanced system prompt with self-correction
+    const systemPrompt = enhancedSystemPrompt(session.writerId, learningContext);
     
-    // Prepare messages
+    // Prepare messages - include more conversation history for better context
     const messages = [
-      ...session.conversationHistory.slice(-10), // Keep last 10 messages for context
+      ...session.conversationHistory.slice(-15), // Increased from 10 to 15
       { role: 'user', content: message }
     ];
     
-    // Get response from Claude
-    const response = await openai.chat.completions.create({
-      model: 'anthropic/claude-3.5-sonnet',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...messages
-      ],
-      temperature: 0.8,
-      max_tokens: 1500,
-    });
+    // Get response from Claude with retry logic
+    let response;
+    let retries = 3;
     
-    const assistantMessage = response.choices[0].message.content;
+    while (retries > 0) {
+      try {
+        response = await openai.chat.completions.create({
+          model: 'anthropic/claude-3.5-sonnet',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...messages
+          ],
+          temperature: 0.7, // Slightly lower for more accuracy
+          max_tokens: 2000, // Increased to allow self-corrections
+        });
+        break;
+      } catch (apiError) {
+        retries--;
+        if (retries === 0) throw apiError;
+        console.log(`Retry attempt, ${retries} left...`);
+        await new Promise(r => setTimeout(r, 1000)); // Wait before retry
+      }
+    }
+    
+    let assistantMessage = response.choices[0].message.content;
+    
+    // Post-process: Check if AI made obvious corrections
+    if (assistantMessage.toLowerCase().includes('upon reflection') ||
+        assistantMessage.toLowerCase().includes('let me correct') ||
+        assistantMessage.toLowerCase().includes('i should clarify')) {
+      // AI already self-corrected, good!
+      console.log('AI self-corrected message');
+    }
     
     // Store in conversation history
     session.conversationHistory.push({
@@ -242,11 +298,17 @@ bot.on('message', async (ctx) => {
       content: assistantMessage
     });
     
-    // Split long messages if needed (Telegram has character limit)
-    const chunks = chunkMessage(assistantMessage, 4096);
+    // Limit conversation history to prevent memory issues
+    if (session.conversationHistory.length > 50) {
+      session.conversationHistory = session.conversationHistory.slice(-50);
+    }
+    
+    // Split long messages if needed
+    const chunks = chunkMessage(assistantMessage, 4090);
     
     for (const chunk of chunks) {
       await ctx.reply(chunk, {
+        parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
             [
@@ -256,19 +318,33 @@ bot.on('message', async (ctx) => {
           ]
         }
       });
+      
+      // Small delay between messages to avoid rate limiting
+      await new Promise(r => setTimeout(r, 100));
     }
     
   } catch (error) {
     console.error('Error:', error);
-    ctx.reply('❌ Произошла ошибка при обработке вашего сообщения. Попробуйте ещё раз.');
+    let errorMsg = '❌ Произошла ошибка при обработке вашего сообщения.';
+    
+    if (error.status === 405) {
+      errorMsg += '\n\n⚠️ Ошибка API (405). Проверьте конфигурацию.';
+    } else if (error.status === 401) {
+      errorMsg += '\n\n⚠️ Ошибка аутентификации. Проверьте токен OpenRouter.';
+    }
+    
+    await ctx.reply(errorMsg);
   }
 });
 
 // Helper function to split long messages
 function chunkMessage(text, maxLength) {
+  if (text.length <= maxLength) return [text];
+  
   const chunks = [];
   let currentChunk = '';
   
+  // Try to split by paragraphs first
   const paragraphs = text.split('\n\n');
   
   for (const paragraph of paragraphs) {
@@ -282,16 +358,46 @@ function chunkMessage(text, maxLength) {
   
   if (currentChunk) chunks.push(currentChunk.trim());
   
+  // If still too long, split by sentences
+  if (chunks.some(c => c.length > maxLength)) {
+    chunks = [];
+    currentChunk = '';
+    const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+    
+    for (const sentence of sentences) {
+      if ((currentChunk + sentence).length > maxLength) {
+        if (currentChunk) chunks.push(currentChunk.trim());
+        currentChunk = sentence;
+      } else {
+        currentChunk += sentence;
+      }
+    }
+    if (currentChunk) chunks.push(currentChunk.trim());
+  }
+  
   return chunks.length > 0 ? chunks : [text];
 }
 
-// Start bot
-console.log('🤖 Telegram bot запускается...');
-bot.launch();
+// Start bot with error handling
+console.log('🤖 Telegram бот запускается...');
 
-console.log('✅ Telegram бот запущен!');
-console.log('Бот ожидает сообщений...');
+bot.launch({
+  polling: {
+    timeout: 30,
+    limit: 100,
+    allowed_updates: ['message', 'callback_query']
+  }
+});
+
+console.log('✅ Telegram бот запущен и слушает сообщения!');
+console.log('📚 Писатели: ' + writers.map(w => w.name).join(', '));
 
 // Enable graceful stop
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+process.once('SIGINT', () => {
+  console.log('Shutting down bot...');
+  bot.stop('SIGINT');
+});
+process.once('SIGTERM', () => {
+  console.log('Shutting down bot...');
+  bot.stop('SIGTERM');
+});
