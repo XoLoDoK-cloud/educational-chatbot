@@ -11,6 +11,10 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN
 from chatgpt_brain import answer_literature_question, clear_user_memory
+from writers_brain import (
+    get_available_writers, set_user_writer, get_user_writer, 
+    talk_to_writer, get_writer_info, clear_writer_conversation
+)
 
 # Setup logging
 logging.basicConfig(
@@ -28,11 +32,22 @@ def get_main_keyboard():
     """Main menu keyboard"""
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="❓ Ask Question"), KeyboardButton(text="🆘 Help")],
-            [KeyboardButton(text="🧹 Clear Memory"), KeyboardButton(text="ℹ️ About")]
+            [KeyboardButton(text="❓ Ask Question"), KeyboardButton(text="👥 Talk with Writers")],
+            [KeyboardButton(text="🧹 Clear Memory"), KeyboardButton(text="ℹ️ About")],
+            [KeyboardButton(text="🆘 Help")]
         ],
         resize_keyboard=True
     )
+
+
+def get_writers_keyboard():
+    """Keyboard for selecting writers"""
+    writers = get_available_writers()
+    keyboard = []
+    for writer in writers:
+        keyboard.append([KeyboardButton(text=f"📖 {writer['name']}")])
+    keyboard.append([KeyboardButton(text="🔙 Back to Menu")])
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
 @dp.message(Command("start"))
@@ -42,16 +57,17 @@ async def cmd_start(message: types.Message):
     clear_user_memory(user_id)
     
     await message.answer(
-        "🧠 **LITERARY CHATGPT**\n\n"
-        "Welcome to Literary ChatGPT - an autonomous neural network specialized in world literature.\n\n"
-        "I can answer ANY question about:\n"
-        "📚 Writers and authors\n"
-        "📖 Books and works\n"
-        "🎓 Literary genres and movements\n"
-        "📜 Literary history\n"
-        "💭 Literary analysis and interpretation\n\n"
-        "Just ask your question in natural language and I'll provide a comprehensive answer with Wikipedia context.\n\n"
-        "Get started by clicking '❓ Ask Question' or type your question directly!",
+        "🧠 **LITERARY CHATGPT** 📚\n\n"
+        "Добро пожаловать в Literary ChatGPT - автономную нейросеть по мировой литературе!\n\n"
+        "**Я могу:**\n"
+        "❓ Ответить на вопросы о писателях, книгах, жанрах\n"
+        "🎭 Поговорить как русский классик!\n"
+        "📖 Анализировать литературные произведения\n"
+        "💭 Обсуждать историю и стиль литературы\n\n"
+        "**Выберите режим:**\n"
+        "• ❓ **Вопросы** - спросить о литературе\n"
+        "• 👥 **Беседы** - поговорить с Пушкиным, Толстым, Достоевским, Чеховым или Гоголем!\n\n"
+        "Нажмите кнопку ниже или напишите вопрос!",
         reply_markup=get_main_keyboard(),
         parse_mode="Markdown"
     )
@@ -62,35 +78,43 @@ async def cmd_start(message: types.Message):
 async def cmd_help(message: types.Message):
     """Help command"""
     help_text = """
-🤖 **HOW TO USE LITERARY CHATGPT**
+🤖 **КАК ИСПОЛЬЗОВАТЬ LITERARY CHATGPT**
 
-**What I can do:**
-✓ Answer questions about any writer, book, or literary movement
-✓ Provide deep analysis of literary works
-✓ Compare authors and their styles
-✓ Discuss literary history and evolution
-✓ Remember the context of your entire conversation
+**Что я могу делать:**
+✓ Ответить на вопросы о писателях, книгах, литературных движениях
+✓ Углублённо анализировать произведения
+✓ Сравнивать авторов и их стили
+✓ Обсуждать историю литературы
+✓ НОВОЕ: Поговорить как исторический писатель!
 
-**Example questions:**
-• Tell me about Dostoevsky's literary style
-• What is romanticism in literature?
-• Analyze the novel "War and Peace"
-• What's the difference between realism and modernism?
-• Who are the most influential writers of the 20th century?
+**Два режима работы:**
 
-**How I work:**
-1. You ask a question about literature
-2. I search Wikipedia for relevant information
-3. I use Claude AI to generate a comprehensive answer
-4. I remember your entire conversation
+**1️⃣ РЕЖИМ ВОПРОСОВ (❓ Ask Question)**
+• Задавайте вопросы о литературе
+• Получайте ответы от AI Claude
+• Примеры:
+  - О стиле Достоевского
+  - Что такое романтизм?
+  - Анализ "Войны и мира"
 
-**Features:**
-🧠 ChatGPT-style responses
-📚 Wikipedia integration for accuracy
-💭 Context memory (remembers your conversation)
-🌍 Knowledge of world literature
+**2️⃣ РЕЖИМ БЕСЕД С ПИСАТЕЛЯМИ (👥 Talk with Writers)**
+• Выберите писателя из списка:
+  📖 Александр Пушкин
+  📖 Лев Толстой
+  📖 Фёдор Достоевский
+  📖 Антон Чехов
+  📖 Николай Гоголь
+• Беседуйте как с историческим персоналием!
+• Узнавайте их мысли и философию
 
-Just type any question and get started!
+**Особенности:**
+🧠 AI Claude 3.5 Sonnet
+📚 Википедия контекст
+💭 Сохранение разговоров
+🎭 Персоналии писателей
+🌍 Мировая литература
+
+Начните с выбора режима!
 """
     await message.answer(help_text, parse_mode="Markdown", reply_markup=get_main_keyboard())
 
@@ -100,28 +124,40 @@ Just type any question and get started!
 async def cmd_about(message: types.Message):
     """About command"""
     about_text = """
-📚 **ABOUT LITERARY CHATGPT**
+📚 **О LITERARY CHATGPT**
 
-**Architecture:**
-• Neural Network: Claude 3.5 Sonnet (OpenRouter)
-• Knowledge Base: Wikipedia + World Literature Database
-• Memory: Conversation history (30 messages per user)
-• Interface: Telegram Bot (@LiteraryCompanionBot)
+**Архитектура:**
+• Нейросеть: Claude 3.5 Sonnet (OpenRouter)
+• База знаний: Wikipedia + Русская литература
+• Память: История разговоров (30 сообщений/пользователя)
+• Интерфейс: Telegram Bot (@LiteraryCompanionBot)
 
-**Technology:**
-• Python 3 + Aiogram (async Telegram framework)
-• Aiohttp (async Wikipedia requests)
-• Real-time data fetching and caching
+**Две режима:**
+1️⃣ **Режим вопросов** - Спрашивайте о литературе
+2️⃣ **Режим бесед** - Говорите с писателями!
 
-**Capabilities:**
-✓ Autonomous responses (no predefined answers)
-✓ Deep literary analysis
-✓ Multi-topic support
-✓ Context awareness
+**Доступные писатели:**
+📖 Александр Пушкин (1799-1837)
+📖 Лев Толстой (1828-1910)
+📖 Фёдор Достоевский (1821-1881)
+📖 Антон Чехов (1860-1904)
+📖 Николай Гоголь (1809-1852)
 
-**Language:** English/Russian
+**Возможности:**
+✓ Автономные ответы от AI
+✓ Глубокий анализ литературы
+✓ Беседы с персоналиями писателей
+✓ Сохранение контекста разговора
+✓ Мировая и русская литература
 
-This is a fully autonomous neural network designed to be your expert guide to world literature.
+**Технология:**
+• Python 3 + Aiogram
+• Aiohttp для асинхронных запросов
+• Real-time обработка данных
+
+**Языки:** Русский/Английский
+
+Полностью автономная нейросеть для глубокого погружения в мир литературы.
 """
     await message.answer(about_text, parse_mode="Markdown", reply_markup=get_main_keyboard())
 
@@ -147,9 +183,63 @@ async def cmd_ask(message: types.Message):
     )
 
 
+@dp.message(F.text == "👥 Talk with Writers")
+async def cmd_talk_writers(message: types.Message):
+    """Show available writers"""
+    writers = get_available_writers()
+    writers_list = "\n".join([f"📖 {w['name']} ({w['birth']}-{w['death']})" for w in writers])
+    
+    await message.answer(
+        f"🎭 **ВЫБЕРИТЕ ПИСАТЕЛЯ ДЛЯ БЕСЕДЫ**\n\n"
+        f"Доступные писатели:\n{writers_list}\n\n"
+        f"Нажмите на интересующего вас писателя:",
+        parse_mode="Markdown",
+        reply_markup=get_writers_keyboard()
+    )
+
+
+@dp.message(F.text.startswith("📖"))
+async def select_writer(message: types.Message):
+    """Handle writer selection"""
+    user_id = message.from_user.id
+    writer_name = message.text.replace("📖 ", "")
+    
+    # Find writer key
+    writers = get_available_writers()
+    writer_key = None
+    for w in writers:
+        if w['name'] == writer_name:
+            writer_key = w['key']
+            break
+    
+    if writer_key and set_user_writer(user_id, writer_key):
+        writer_info = get_writer_info(writer_key)
+        opening = writer_info['greetings'][0]
+        
+        await message.answer(
+            f"✨ **{writer_info['name']}** приветствует вас!\n\n"
+            f"*\"{opening}\"*\n\n"
+            f"📝 Напишите свой вопрос или начните беседу...",
+            parse_mode="Markdown",
+            reply_markup=get_main_keyboard()
+        )
+        logger.info(f"User {user_id} selected writer: {writer_key}")
+    else:
+        await message.answer("❌ Ошибка выбора писателя", reply_markup=get_main_keyboard())
+
+
+@dp.message(F.text == "🔙 Back to Menu")
+async def back_to_menu(message: types.Message):
+    """Go back to main menu"""
+    await message.answer(
+        "Вы вернулись в главное меню.",
+        reply_markup=get_main_keyboard()
+    )
+
+
 @dp.message()
 async def handle_text(message: types.Message):
-    """Handle text messages - main Q&A handler"""
+    """Handle text messages - routes to writer or Q&A"""
     user_id = message.from_user.id
     question = message.text
     
@@ -159,20 +249,30 @@ async def handle_text(message: types.Message):
     try:
         logger.info(f"User {user_id} asked: {question[:100]}")
         
-        # Get response from neural network
-        response = await answer_literature_question(user_id, question)
+        # Check if user has selected a writer
+        current_writer = get_user_writer(user_id)
+        
+        if current_writer:
+            # Talk with writer mode
+            response = await talk_to_writer(user_id, question)
+            writer_info = get_writer_info(current_writer)
+            prefix = f"**{writer_info['name']}**: "
+        else:
+            # Regular Q&A mode
+            response = await answer_literature_question(user_id, question)
+            prefix = ""
         
         if not response:
-            response = "I need a moment to think about that. Please try again."
+            response = "Мне нужен момент, чтобы подумать. Пожалуйста, попробуйте снова."
         
         # Send response
-        await message.answer(response, parse_mode="Markdown", reply_markup=get_main_keyboard())
+        await message.answer(prefix + response, parse_mode="Markdown", reply_markup=get_main_keyboard())
         logger.info(f"Response sent to user {user_id}")
         
     except Exception as e:
         logger.error(f"Error processing message: {e}")
         await message.answer(
-            "⚠️ Something went wrong. Please try again.",
+            "⚠️ Что-то пошло не так. Пожалуйста, попробуйте снова.",
             reply_markup=get_main_keyboard()
         )
 
