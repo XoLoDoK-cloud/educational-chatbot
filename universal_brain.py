@@ -305,7 +305,17 @@ def _local_response(question, author_data):
     elif category == 'biography':
         dates = author_data.get('dates', '')
         bio = author_data.get('bio', '')
-        return f"{writer_name} ({dates}): {bio[:300]}..."
+        
+        # Handle birth date questions specifically
+        if 'когда' in question.lower() or 'родился' in question.lower() or 'birth' in question.lower():
+            if dates:
+                birth_death = dates.split('-')
+                if len(birth_death) >= 1:
+                    birth_year = birth_death[0].strip()
+                    return f"**{writer_name}** родился в **{birth_year}** году."
+            return f"**{writer_name}** жил в эпоху {bio[:100]}..."
+        
+        return f"**{writer_name}** ({dates}): {bio[:300]}..."
     else:
         bio = author_data.get('bio', '')
         return f"По поводу {question}: {bio[:300]}..."
