@@ -1,6 +1,7 @@
 import { Telegraf } from 'telegraf';
 import { writersKnowledge, systemPromptTemplate } from './writers-knowledge.js';
 import { trainingData, learningSystem } from './training-data.js';
+import { worldLiterature, literatureSynthesis } from './world-literature.js';
 import { OpenAI } from 'openai';
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
@@ -30,15 +31,40 @@ const enhancedSystemPrompt = (writerId, learningContext, userLearnings) => {
   const basePrompt = systemPromptTemplate(writerId, learningContext);
   const training = trainingData[writerId];
   
+  // Get world literature context - about other writers and genres
+  let worldLitContext = '';
+  if (trainingData[writerId]) {
+    // Get related world literature knowledge
+    const writerLit = worldLiterature.ancient || {};
+    const hasInfo = Object.keys(worldLiterature).filter(k => k !== 'ancient' && k !== 'renaissance' && k !== 'enlightenment_romanticism' && k !== 'realism_19' && k !== 'russian_golden_age' && k !== 'twentieth_century' && k !== 'global_literature' && k !== 'literary_movements' && k !== 'genres' && k !== 'universal_themes' && k !== 'contemporary_21st' && k !== 'famous_quotes' && k !== 'literatureSynthesis');
+    
+    worldLitContext = `\n\nWORLD LITERATURE CONTEXT:
+You have comprehensive knowledge of world literature including:
+- Ancient literature: Homer (Iliad, Odyssey), Dante, Greek dramatists
+- Renaissance & Enlightenment: Goethe, Austen, Molière
+- 19th Century Realism: Balzac, Dickens, Flaubert
+- Russian Golden Age: Tolstoy, Dostoevsky, Chekhov
+- Modernism: Joyce, Woolf, Kafka, Faulkner, Hemingway
+- Latin American & Global: Márquez, Borges, Achebe, Morrison
+- Universal themes: Love, death, power, freedom, identity, redemption
+
+You can discuss how this writer relates to other writers and literary movements.`;
+  }
+  
   return `${basePrompt}
 
 MANDATORY TRAINING DATA FOR THIS WRITER:
 ${training ? Object.entries(training.dates || {}).map(([work, dates]) => 
   `• ${work}: ${JSON.stringify(dates)}`).join('\n') : ''}
 
-${training && training.factChecklist ? `CRITICAL FACTS TO REMEMBER:
-${training.factChecklist.map(f => `✓ ${f}`).join('\n')}
+${training && training.detailedFacts ? `CRITICAL BIOGRAPHICAL FACTS:
+${training.detailedFacts.slice(0, 8).map(f => `✓ ${f}`).join('\n')}
 ` : ''}
+
+${training && training.characters ? `CHARACTER KNOWLEDGE:
+${Object.entries(training.characters).map(([work, chars]) => 
+  `• ${work}: ${chars.join(', ')}`).join('\n')}
+` : ''}${worldLitContext}
 
 SELF-CORRECTION & LEARNING PROTOCOL:
 1. BEFORE answering ANY factual question - VERIFY against your knowledge
@@ -50,10 +76,11 @@ SELF-CORRECTION & LEARNING PROTOCOL:
 7. If user corrects you - acknowledge and remember for similar questions
 
 AGGRESSIVE ACCURACY MODE:
-- You are trusted to teach people about these writers
+- You are trusted to teach people about these writers and world literature
 - Factual errors are NOT acceptable
 - Always prioritize accuracy over brevity
-- Double-check information from the training data above`;
+- Double-check information from the training data above
+- When discussing other writers, ensure accuracy to your best knowledge`;
 };
 
 // Start command
@@ -82,7 +109,16 @@ bot.help((ctx) => {
     '*Обучение нейронки:*\n' +
     '✅ - Ответ правильный\n' +
     '❌ [ответ] - Исправление\n\n' +
-    '_Примечание: нейронка сама исправляет ошибки_',
+    '*🌍 База знаний бота включает:*\n' +
+    '• 5 основных писателей\n' +
+    '• Древнюю литературу (Гомер, Данте)\n' +
+    '• Эпоху Возрождения (Шекспир, Мольер)\n' +
+    '• Просвещение (Гёте, Остен, Гюго)\n' +
+    '• XIX век (Балзак, Диккенс, Флобер)\n' +
+    '• Модернизм (Кафка, Джойс, Вулф)\n' +
+    '• XX-XXI века (Маркес, Мураками)\n' +
+    '• Африканскую, латиноамериканскую, азиатскую литературу\n\n' +
+    '_Примечание: нейронка самокорректируется и учится от вас_',
     { parse_mode: 'Markdown' }
   );
 });
