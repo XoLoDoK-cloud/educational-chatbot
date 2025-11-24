@@ -348,10 +348,34 @@ LITERATURE_DB = {
 }
 
 def get_writer_knowledge(writer_name: str) -> dict | None:
-    """Get comprehensive knowledge about a writer"""
+    """Get comprehensive knowledge about a writer - supports English and Russian names"""
+    # Russian name mappings
+    russian_to_key = {
+        'пушкин': 'aleksandr_pushkin',
+        'толстой': 'lev_tolstoy',
+        'достоевский': 'fedor_dostoevsky',
+        'чехов': 'anton_chekhov',
+        'гоголь': 'nikolai_gogol',
+        'александр': 'aleksandr_pushkin',
+        'лев': 'lev_tolstoy',
+        'фёдор': 'fedor_dostoevsky',
+        'антон': 'anton_chekhov',
+        'николай': 'nikolai_gogol',
+    }
+    
+    query_lower = writer_name.lower()
+    
+    # Check if it's a Russian name
+    for russian_name, key in russian_to_key.items():
+        if russian_name in query_lower:
+            for region, writers in LITERATURE_DB["classic_authors"].items():
+                if key in writers:
+                    return writers[key]
+    
+    # Standard search - check key and name
     for region, writers in LITERATURE_DB["classic_authors"].items():
         for writer_key, writer_data in writers.items():
-            if writer_name.lower() in writer_key or writer_name.lower() in writer_data["name"].lower():
+            if query_lower in writer_key or query_lower in writer_data["name"].lower():
                 return writer_data
     return None
 
