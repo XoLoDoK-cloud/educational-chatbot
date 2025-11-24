@@ -10,3 +10,10 @@ beautifulsoup4
 python-dotenv
 requests
 wikipedia-api
+aiogram
+aiohttp
+beautifulsoup4
+flask
+python-dotenv
+requests
+wikipedia-api
