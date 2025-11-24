@@ -380,16 +380,59 @@ def get_writer_knowledge(writer_name: str) -> dict | None:
     return None
 
 def get_work_knowledge(work_title: str) -> dict | None:
-    """Get knowledge about a specific literary work"""
+    """Get knowledge about a specific literary work - supports Russian and English names"""
+    # Russian to English work title mappings
+    russian_to_work = {
+        'война и мир': 'war_and_peace',
+        'преступление': 'crime_and_punishment',
+        'идиот': 'the_idiot',
+        'гордость': 'pride_and_prejudice',
+        'гамлет': 'hamlet',
+        'анна': 'anna_karenina',
+        'оскорблённые': 'notes_from_underground',
+        'мастер': 'crime_and_punishment',
+        'великие': 'great_expectations',
+        'гэтсби': 'the_great_gatsby',
+    }
+    
+    query_lower = work_title.lower()
+    
+    # Check for Russian titles
+    for russian_title, work_key in russian_to_work.items():
+        if russian_title in query_lower:
+            if work_key in LITERATURE_DB["famous_works"]:
+                return LITERATURE_DB["famous_works"][work_key]
+    
+    # Standard search - check key and title
     for work_key, work_data in LITERATURE_DB["famous_works"].items():
-        if work_title.lower() in work_key or work_title.lower() in work_data["title"].lower():
+        if query_lower in work_key or query_lower in work_data["title"].lower():
             return work_data
     return None
 
 def get_movement_knowledge(movement_name: str) -> dict | None:
-    """Get knowledge about a literary movement"""
+    """Get knowledge about a literary movement - supports Russian and English names"""
+    # Russian to English movement mappings
+    russian_to_movement = {
+        'романтизм': 'romanticism',
+        'реализм': 'realism',
+        'натурализм': 'naturalism',
+        'модернизм': 'modernism',
+        'экзистенциализм': 'existentialism',
+        'барокко': 'romanticism',  # approximate
+        'классицизм': 'romanticism',  # approximate
+    }
+    
+    query_lower = movement_name.lower()
+    
+    # Check for Russian names
+    for russian_name, movement_key in russian_to_movement.items():
+        if russian_name in query_lower:
+            if movement_key in LITERATURE_DB["literary_movements"]:
+                return LITERATURE_DB["literary_movements"][movement_key]
+    
+    # Standard search - check key and name
     for movement_key, movement_data in LITERATURE_DB["literary_movements"].items():
-        if movement_name.lower() in movement_key or movement_name.lower() in movement_data["name"].lower():
+        if query_lower in movement_key or query_lower in movement_data["name"].lower():
             return movement_data
     return None
 
