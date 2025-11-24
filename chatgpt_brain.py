@@ -1,11 +1,13 @@
 """
 Neural Network Brain - Claude 3.5 Sonnet Integration
 Integrates with OpenRouter API for autonomous literary analysis
+Enhanced with comprehensive literature knowledge base
 """
 import aiohttp
 import logging
 from typing import Optional, Dict, List
 from config import OPENROUTER_API_KEY
+from literature_knowledge import generate_literature_context, get_literature_system_prompt
 import json
 from datetime import datetime
 
@@ -90,21 +92,15 @@ async def answer_literature_question(user_id: int, question: str) -> str:
                 "X-Title": "LiteraryBot"
             }
             
+            # Generate enhanced context from literature knowledge base
+            literature_context = generate_literature_context(question)
+            
             payload = {
                 "model": "claude-3.5-sonnet",
                 "messages": messages,
                 "temperature": 0.7,
                 "max_tokens": 1500,
-                "system": """You are an expert in world literature with deep knowledge of:
-- Writers and authors from all periods and cultures
-- Literary works, novels, poetry, and drama
-- Literary movements, genres, and styles
-- Literary history and evolution
-- Literary analysis and interpretation
-
-Always provide comprehensive, detailed answers with proper literary terminology.
-Format your response clearly with sections when appropriate.
-Use markdown formatting for better readability."""
+                "system": get_literature_system_prompt()
             }
             
             async with session.post(
