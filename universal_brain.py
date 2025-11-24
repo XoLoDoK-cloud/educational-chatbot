@@ -6,7 +6,10 @@ Using Claude 3.5 Sonnet for maximum intelligence
 import asyncio
 import aiohttp
 import os
+import logging
 from collections import defaultdict
+
+logger = logging.getLogger(__name__)
 
 class UniversalBrain:
     """Expert knowledge engine for world literature - ULTRA-ADVANCED"""
@@ -260,11 +263,44 @@ brain = UniversalBrain()
 
 async def generate_response(user_id, question, author_data):
     """Main API for expert mode"""
-    return await brain.think(user_id, question, author_data)
+    try:
+        return await brain.think(user_id, question, author_data)
+    except Exception as e:
+        logger.error(f"Error in generate_response: {e}")
+        # Fallback to local response
+        return _local_response(question, author_data)
 
 async def generate_dialogue_response(user_id, question, author_data):
     """Main API for dialogue mode"""
-    return await brain.dialogue(user_id, question, author_data)
+    try:
+        return await brain.dialogue(user_id, question, author_data)
+    except Exception as e:
+        logger.error(f"Error in generate_dialogue_response: {e}")
+        # Fallback to local response
+        return _local_response(question, author_data)
+
+def _local_response(question, author_data):
+    """Local fallback response when API is unavailable"""
+    writer_name = author_data.get('name', 'Unknown')
+    
+    # Determine question category for better response
+    from smart_responder import smart_responder
+    category = smart_responder.categorize_question(question)
+    
+    if category == 'about_self':
+        bio = author_data.get('bio', '')
+        return f"О себе как {writer_name}: {bio[:300]}..."
+    elif category == 'major_works':
+        works = author_data.get('works', [])
+        works_str = ', '.join(works[:3]) if works else 'неизвестно'
+        return f"Мои главные произведения: {works_str}"
+    elif category == 'biography':
+        dates = author_data.get('dates', '')
+        bio = author_data.get('bio', '')
+        return f"{writer_name} ({dates}): {bio[:300]}..."
+    else:
+        bio = author_data.get('bio', '')
+        return f"По поводу {question}: {bio[:300]}..."
 
 def clear_memory(user_id):
     """Reset conversation"""
