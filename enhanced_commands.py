@@ -44,20 +44,3 @@ def get_preload_status():
     result += f"\n📌 БОТ ПОЛНОСТЬЮ ФУНКЦИОНАЛЕН И ГОТОВ К РАБОТЕ!"
     
     return result
-
-def search_writer(query):
-    """Search for a writer by name"""
-    from writer_search import writer_search
-    results = writer_search.search(query)
-    
-    if not results:
-        return f"❌ Писатель '{query}' не найден"
-    
-    result = f"🔍 **РЕЗУЛЬТАТЫ ПОИСКА: {query}**\n\n"
-    for writer_key, score in results[:5]:  # Top 5 results
-        writer = knowledge.writers_db.get(writer_key, {})
-        name = writer.get('name', 'Unknown')
-        dates = writer.get('dates', '')
-        result += f"📖 **{name}** ({dates})\n"
-    
-    return result
