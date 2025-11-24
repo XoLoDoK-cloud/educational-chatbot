@@ -1,7 +1,6 @@
-modules = ["python-3.12"]
+modules = ["python-3.11"]
 [agent]
 expertMode = true
-integrations = ["javascript_openai:1.0.0"]
 
 [nix]
 channel = "stable-25_05"
@@ -16,27 +15,24 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "telegram-bot"
+args = "Russian Literature Chatbot"
 
 [[workflows.workflow]]
-name = "telegram-bot"
+name = "Russian Literature Chatbot"
 author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python bot.py"
+args = "python app.py"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
 
 [[ports]]
 localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 45469
-externalPort = 3000
-
-[[ports]]
-localPort = 45469
+localPort = 36521
 externalPort = 3000
