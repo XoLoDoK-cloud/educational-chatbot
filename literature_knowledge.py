@@ -347,7 +347,7 @@ LITERATURE_DB = {
     }
 }
 
-def get_writer_knowledge(writer_name: str) -> dict:
+def get_writer_knowledge(writer_name: str) -> dict | None:
     """Get comprehensive knowledge about a writer"""
     for region, writers in LITERATURE_DB["classic_authors"].items():
         for writer_key, writer_data in writers.items():
@@ -355,14 +355,14 @@ def get_writer_knowledge(writer_name: str) -> dict:
                 return writer_data
     return None
 
-def get_work_knowledge(work_title: str) -> dict:
+def get_work_knowledge(work_title: str) -> dict | None:
     """Get knowledge about a specific literary work"""
     for work_key, work_data in LITERATURE_DB["famous_works"].items():
         if work_title.lower() in work_key or work_title.lower() in work_data["title"].lower():
             return work_data
     return None
 
-def get_movement_knowledge(movement_name: str) -> dict:
+def get_movement_knowledge(movement_name: str) -> dict | None:
     """Get knowledge about a literary movement"""
     for movement_key, movement_data in LITERATURE_DB["literary_movements"].items():
         if movement_name.lower() in movement_key or movement_name.lower() in movement_data["name"].lower():
@@ -396,24 +396,20 @@ def generate_literature_context(query: str) -> str:
     """Generate comprehensive literature context for a query"""
     context_parts = []
     
-    # Check for writer mentions
     writer = get_writer_knowledge(query)
     if writer:
         context_parts.append(f"About {writer['name']}:\nPeriod: {writer['period']}\nWorks: {', '.join(writer['works'][:5])}")
     
-    # Check for movement mentions
     movement = get_movement_knowledge(query)
     if movement:
         context_parts.append(f"Literary Movement: {movement['name']}\nCharacteristics: {', '.join(movement['characteristics'][:3])}")
     
-    # Check for work mentions
     work = get_work_knowledge(query)
     if work:
         context_parts.append(f"Work: {work['title']} by {work['author']} ({work['year']})\nThemes: {', '.join(work['themes'])}")
     
     return "\n\n".join(context_parts) if context_parts else "Literary knowledge base available for reference"
 
-# Export knowledge base for use
 def get_literature_system_prompt() -> str:
     """Generate enhanced system prompt for literary expertise"""
     return """You are an expert literature AI with comprehensive knowledge of world literature, classical works, and literary history. 
