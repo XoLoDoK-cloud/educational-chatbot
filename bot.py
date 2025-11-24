@@ -217,16 +217,19 @@ async def select_writer(message: types.Message):
     
     if writer_key and set_user_writer(user_id, writer_key):
         writer_info = get_writer_info(writer_key)
-        opening = writer_info['greetings'][0]
-        
-        await message.answer(
-            f"✨ **{writer_info['name']}** приветствует вас!\n\n"
-            f"*\"{opening}\"*\n\n"
-            f"📝 Напишите свой вопрос или начните беседу...",
-            parse_mode="Markdown",
-            reply_markup=get_main_keyboard()
-        )
-        logger.info(f"User {user_id} selected writer: {writer_key}")
+        if writer_info:
+            opening = writer_info['greetings'][0]
+            
+            await message.answer(
+                f"✨ **{writer_info['name']}** приветствует вас!\n\n"
+                f"*\"{opening}\"*\n\n"
+                f"📝 Напишите свой вопрос или начните беседу...",
+                parse_mode="Markdown",
+                reply_markup=get_main_keyboard()
+            )
+            logger.info(f"User {user_id} selected writer: {writer_key}")
+        else:
+            await message.answer("❌ Ошибка загрузки писателя", reply_markup=get_main_keyboard())
     else:
         await message.answer("❌ Ошибка выбора писателя", reply_markup=get_main_keyboard())
 
@@ -259,7 +262,7 @@ async def handle_text(message: types.Message):
             # Talk with writer mode
             response = await talk_to_writer(user_id, question)
             writer_info = get_writer_info(current_writer)
-            prefix = f"**{writer_info['name']}**: "
+            prefix = f"**{writer_info['name']}**: " if writer_info else ""
         else:
             # Regular Q&A mode
             response = await answer_literature_question(user_id, question)
