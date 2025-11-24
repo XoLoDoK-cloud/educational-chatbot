@@ -1,4 +1,4 @@
-modules = ["python-3.12", "nodejs-20"]
+modules = ["python-3.12"]
 [agent]
 expertMode = true
 integrations = ["javascript_openai:1.0.0"]
@@ -22,12 +22,12 @@ args = "telegram-bot"
 name = "telegram-bot"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python start.py"
-
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python bot.py"
 
 [[ports]]
 localPort = 5000
