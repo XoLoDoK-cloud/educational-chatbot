@@ -1,12 +1,13 @@
 """
 Literary ChatGPT - Autonomous Neural Network for World Literature
 Литературный ChatGPT - Автономная нейросеть для мировой литературы
+Modern & Beautiful UI
 """
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN
@@ -27,175 +28,271 @@ logger = logging.getLogger(__name__)
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
+# Modern design elements
+SEPARATOR = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+SUBSEP = "─────────────────────────────"
+
 
 def get_main_keyboard():
-    """Main menu keyboard"""
+    """Modern main menu keyboard"""
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="❓ Вопрос о литературе"), KeyboardButton(text="👥 Беседа с писателем")],
-            [KeyboardButton(text="🧹 Очистить память"), KeyboardButton(text="ℹ️ О боте")],
-            [KeyboardButton(text="🆘 Справка")]
+            [KeyboardButton(text="❓ Вопросы"), KeyboardButton(text="👥 Писатели")],
+            [KeyboardButton(text="📚 Справка"), KeyboardButton(text="⚙️ Меню")],
         ],
-        resize_keyboard=True
+        resize_keyboard=True,
+        one_time_keyboard=False
     )
 
 
 def get_writers_keyboard():
-    """Keyboard for selecting writers"""
+    """Keyboard for selecting writers with modern styling"""
     writers = get_available_writers()
     keyboard = []
     for writer in writers:
+        # Format: "📖 Pushkin (1799-1837)"
         keyboard.append([KeyboardButton(text=f"📖 {writer['name']}")])
-    keyboard.append([KeyboardButton(text="🔙 В меню")])
+    keyboard.append([KeyboardButton(text="🔙 Назад")])
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
-    """Start command"""
+    """Start command with modern design"""
     user_id = message.from_user.id
     clear_user_memory(user_id)
     
+    welcome = f"""
+{SEPARATOR}
+    ✨ LITERARY CHATGPT ✨
+{SEPARATOR}
+
+🎓 Вас приветствует автономная нейросеть по мировой литературе!
+
+{SUBSEP}
+📖 ЧТО МОЖНО ДЕЛАТЬ:
+{SUBSEP}
+
+❓ Задавать вопросы о писателях и произведениях
+   → О стиле Достоевского
+   → Анализ "Войны и мира"
+   → Сравнение авторов
+
+🎭 Беседовать с русскими классиками
+   → Пушкин, Толстой, Достоевский
+   → Чехов, Гоголь и другие
+
+📚 Обсуждать историю и теорию литературы
+   → Литературные движения
+   → Жанры и стили
+   → Классические произведения
+
+{SUBSEP}
+🚀 НАЧНИТЕ РАБОТУ:
+{SUBSEP}
+
+Выберите режим выше или просто напишите вопрос!
+"""
+    
     await message.answer(
-        "🧠 **LITERARY CHATGPT** 📚\n\n"
-        "Добро пожаловать в Literary ChatGPT - автономную нейросеть по мировой литературе!\n\n"
-        "**Я могу:**\n"
-        "❓ Ответить на вопросы о писателях, книгах, жанрах\n"
-        "🎭 Поговорить как русский классик!\n"
-        "📖 Анализировать литературные произведения\n"
-        "💭 Обсуждать историю и стиль литературы\n\n"
-        "**Выберите режим:**\n"
-        "• ❓ **Вопросы** - спросить о литературе\n"
-        "• 👥 **Беседы** - поговорить с Пушкиным, Толстым, Достоевским, Чеховым или Гоголем!\n\n"
-        "Нажмите кнопку ниже или напишите вопрос!",
+        welcome,
         reply_markup=get_main_keyboard(),
         parse_mode="Markdown"
     )
 
 
 @dp.message(Command("help"))
-@dp.message(F.text == "🆘 Справка")
+@dp.message(F.text == "📚 Справка")
 async def cmd_help(message: types.Message):
-    """Help command"""
-    help_text = """
-🤖 **КАК ИСПОЛЬЗОВАТЬ LITERARY CHATGPT**
+    """Modern help page"""
+    help_text = f"""
+{SEPARATOR}
+    📖 КАК ИСПОЛЬЗОВАТЬ БОТ
+{SEPARATOR}
 
-**Что я могу делать:**
-✓ Ответить на вопросы о писателях, книгах, литературных движениях
-✓ Углублённо анализировать произведения
-✓ Сравнивать авторов и их стили
-✓ Обсуждать историю литературы
-✓ Поговорить как исторический писатель!
+{SUBSEP}
+🎯 РЕЖИМ 1: ВОПРОСЫ О ЛИТЕРАТУРЕ
+{SUBSEP}
 
-**Два режима работы:**
+1️⃣ Нажмите "❓ Вопросы"
+2️⃣ Напишите свой вопрос:
+   • "Кто такой Пушкин?"
+   • "Проанализируй Война и мир"
+   • "Что такое романтизм?"
 
-**1️⃣ РЕЖИМ ВОПРОСОВ (❓ Вопрос о литературе)**
-• Задавайте вопросы о литературе
-• Получайте ответы от AI Claude 3.5 Sonnet
-• Примеры:
-  - О стиле Достоевского
-  - Что такое романтизм?
-  - Анализ "Войны и мира"
-  - Сравните Пушкина и Толстого
+📝 Примеры вопросов:
+   ✓ "Стиль Чехова"
+   ✓ "Первое произведение Толстого"
+   ✓ "Цитата Достоевского"
+   ✓ "Преступление и наказание - тема"
 
-**2️⃣ РЕЖИМ БЕСЕД С ПИСАТЕЛЯМИ (👥 Беседа с писателем)**
-• Выберите писателя из списка:
-  📖 Александр Пушкин (1799-1837)
-  📖 Лев Толстой (1828-1910)
-  📖 Фёдор Достоевский (1821-1881)
-  📖 Антон Чехов (1860-1904)
-  📖 Николай Гоголь (1809-1852)
-• Беседуйте как с историческим персоналием!
-• Узнавайте их мысли и философию
-• Писатели обсуждают литературу глубоко!
+{SUBSEP}
+🎭 РЕЖИМ 2: БЕСЕДА С ПИСАТЕЛЯМИ
+{SUBSEP}
 
-**Особенности:**
-🧠 AI Claude 3.5 Sonnet (продвинутый)
-📚 Полная база знаний о литературе
-💭 Сохранение разговоров (30 сообщений)
-🎭 Подлинные персоналии писателей
-🌍 Мировая и русская литература
-🎓 Анализ литературных произведений
+1️⃣ Нажмите "👥 Писатели"
+2️⃣ Выберите писателя из списка
+3️⃣ Ведите беседу как с человеком!
 
-Начните с выбора режима!
+Доступные писатели:
+   📘 Александр Пушкин (1799-1837)
+   📕 Лев Толстой (1828-1910)
+   📙 Фёдор Достоевский (1821-1881)
+   📗 Антон Чехов (1860-1904)
+   📔 Николай Гоголь (1809-1852)
+
+{SUBSEP}
+⚙️ КОМАНДЫ
+{SUBSEP}
+
+/start    - Главное меню
+/help     - Эта справка
+/clear    - Очистить память
+/about    - О боте
+
+{SUBSEP}
+✨ ОСОБЕННОСТИ
+{SUBSEP}
+
+🧠 AI Claude 3.5 Sonnet - мощная нейросеть
+📚 База из 50+ авторов и 1000+ произведений
+💭 Память на 30 сообщений (в одной беседе)
+🌍 Русская и мировая литература
+⚡ Быстрые ответы в реальном времени
+
 """
+    
     await message.answer(help_text, parse_mode="Markdown", reply_markup=get_main_keyboard())
 
 
 @dp.message(Command("about"))
-@dp.message(F.text == "ℹ️ О боте")
+@dp.message(F.text == "⚙️ Меню")
 async def cmd_about(message: types.Message):
-    """About command"""
-    about_text = """
-📚 **О LITERARY CHATGPT**
+    """Modern about page"""
+    about_text = f"""
+{SEPARATOR}
+    ℹ️ О LITERARY CHATGPT
+{SEPARATOR}
 
-**Архитектура:**
-• Нейросеть: Claude 3.5 Sonnet (OpenRouter)
-• База знаний: Wikipedia + Русская литература
-• Память: История разговоров (30 сообщений/пользователя)
-• Интерфейс: Telegram Bot (@LiteraryCompanionBot)
+{SUBSEP}
+🏗️ АРХИТЕКТУРА
+{SUBSEP}
 
-**Две режима:**
-1️⃣ **Режим вопросов** - Спрашивайте о литературе
-2️⃣ **Режим бесед** - Говорите с писателями!
+✓ Нейросеть: Claude 3.5 Sonnet (OpenRouter)
+✓ База знаний: 50+ авторов, 1000+ произведений
+✓ Память: История разговоров (30 сообщений)
+✓ Язык: Python 3 + Aiogram + AsyncIO
 
-**Доступные писатели:**
-📖 Александр Пушкин (1799-1837)
-📖 Лев Толстой (1828-1910)
-📖 Фёдор Достоевский (1821-1881)
-📖 Антон Чехов (1860-1904)
-📖 Николай Гоголь (1809-1852)
+{SUBSEP}
+🎯 РЕЖИМЫ РАБОТЫ
+{SUBSEP}
 
-**Возможности:**
-✓ Автономные ответы от AI
-✓ Глубокий анализ литературы
-✓ Беседы с персоналиями писателей
-✓ Сохранение контекста разговора
-✓ Мировая и русская литература
+Режим 1️⃣: Вопросы о литературе
+   → AI анализирует ваш вопрос
+   → Ищет в базе знаний
+   → Дает структурированный ответ
 
-**Технология:**
-• Python 3 + Aiogram
-• Aiohttp для асинхронных запросов
-• Real-time обработка данных
+Режим 2️⃣: Беседа с писателями
+   → Каждый писатель имеет характер
+   → Отвечает в своем стиле
+   → Обсуждает свои произведения
 
-**Языки:** Русский/Английский
+{SUBSEP}
+📚 БАЗа ЗНАНИЙ
+{SUBSEP}
 
-Полностью автономная нейросеть для глубокого погружения в мир литературы.
+Русские авторы:
+   • Пушкин, Толстой, Достоевский
+   • Чехов, Гоголь, Лермонтов
+
+Западные авторы:
+   • Shakespeare, Jane Austen, Dickens
+   • Fitzgerald, Kafka, Oscar Wilde
+
+Содержит:
+   • 1000+ произведений
+   • Биографии авторов
+   • Цитаты и анализ
+   • Литературные движения
+
+{SUBSEP}
+🚀 ТЕХНОЛОГИИ
+{SUBSEP}
+
+Backend:  Python 3.12 + FastAPI
+Messaging: Telegram API + Aiogram 3
+AI Model: Claude 3.5 Sonnet (OpenRouter)
+Storage: In-memory (session-based)
+
 """
+    
     await message.answer(about_text, parse_mode="Markdown", reply_markup=get_main_keyboard())
 
 
 @dp.message(Command("clear"))
 @dp.message(F.text == "🧹 Очистить память")
 async def cmd_clear(message: types.Message):
-    """Clear conversation history"""
+    """Clear memory with modern feedback"""
     user_id = message.from_user.id
     clear_user_memory(user_id)
-    await message.answer(
-        "✅ Память разговора очищена. Вы можете начать с новыми вопросами!",
-        reply_markup=get_main_keyboard()
-    )
-
-
-@dp.message(F.text == "❓ Вопрос о литературе")
-async def cmd_ask(message: types.Message):
-    """Prompt for question"""
-    await message.answer(
-        "📝 Задайте ваш вопрос о литературе! Я помогу вам найти ответ.",
-        reply_markup=get_main_keyboard()
-    )
-
-
-@dp.message(F.text == "👥 Беседа с писателем")
-async def cmd_talk_writers(message: types.Message):
-    """Show available writers"""
-    writers = get_available_writers()
-    writers_list = "\n".join([f"📖 {w['name']} ({w['birth']}-{w['death']})" for w in writers])
     
     await message.answer(
-        f"🎭 **ВЫБЕРИТЕ ПИСАТЕЛЯ ДЛЯ БЕСЕДЫ**\n\n"
-        f"Доступные писатели:\n{writers_list}\n\n"
-        f"Нажмите на интересующего вас писателя:",
+        f"{SEPARATOR}\n"
+        f"✅ ПАМЯТЬ ОЧИЩЕНА\n"
+        f"{SEPARATOR}\n\n"
+        f"Вы можете начать новую беседу с чистого листа!\n"
+        f"Все предыдущие сообщения забыты.",
+        reply_markup=get_main_keyboard()
+    )
+
+
+@dp.message(F.text == "❓ Вопросы")
+async def cmd_ask(message: types.Message):
+    """Prompt for question with modern design"""
+    await message.answer(
+        f"{SEPARATOR}\n"
+        f"📝 РЕЖИМ ВОПРОСОВ\n"
+        f"{SEPARATOR}\n\n"
+        f"Напишите ваш вопрос о литературе:\n\n"
+        f"✓ О писателях (Пушкин, Толстой...)\n"
+        f"✓ О произведениях (Война и мир...)\n"
+        f"✓ О литературных движениях\n"
+        f"✓ Анализ и сравнение\n\n"
+        f"💡 Я помогу вам получить точный ответ!",
+        reply_markup=get_main_keyboard()
+    )
+
+
+@dp.message(F.text == "👥 Писатели")
+async def cmd_talk_writers(message: types.Message):
+    """Show writers selection with modern design"""
+    writers = get_available_writers()
+    
+    writers_info = "\n".join([
+        f"📖 {w['name']} ({w['birth']}-{w['death']})" 
+        for w in writers
+    ])
+    
+    writers_menu = f"""
+{SEPARATOR}
+    🎭 БЕСЕДА С ПИСАТЕЛЯМИ
+{SEPARATOR}
+
+Выберите писателя для беседы:
+
+{writers_info}
+
+{SUBSEP}
+
+Вы сможете:
+✓ Обсуждать литературу
+✓ Спрашивать о его творчестве
+✓ Узнавать его взгляды
+✓ Беседовать в его стиле
+"""
+    
+    await message.answer(
+        writers_menu,
         parse_mode="Markdown",
         reply_markup=get_writers_keyboard()
     )
@@ -203,7 +300,7 @@ async def cmd_talk_writers(message: types.Message):
 
 @dp.message(F.text.startswith("📖"))
 async def select_writer(message: types.Message):
-    """Handle writer selection"""
+    """Handle writer selection with beautiful greeting"""
     user_id = message.from_user.id
     writer_name = message.text.replace("📖 ", "")
     
@@ -220,32 +317,57 @@ async def select_writer(message: types.Message):
         if writer_info:
             opening = writer_info['greetings'][0]
             
+            greeting = f"""
+{SEPARATOR}
+    ✨ {writer_info['name'].upper()} ✨
+{SEPARATOR}
+
+{opening}
+
+{SUBSEP}
+
+📖 Вы вошли в беседу с {writer_info['name']}
+
+Вы можете:
+✓ Спрашивать о его жизни
+✓ Обсуждать его произведения
+✓ Узнавать его мысли о литературе
+✓ Услышать его точку зрения
+
+Напишите свой первый вопрос...
+"""
+            
             await message.answer(
-                f"✨ **{writer_info['name']}** приветствует вас!\n\n"
-                f"*\"{opening}\"*\n\n"
-                f"📝 Напишите свой вопрос или начните беседу...",
+                greeting,
                 parse_mode="Markdown",
                 reply_markup=get_main_keyboard()
             )
             logger.info(f"User {user_id} selected writer: {writer_key}")
         else:
-            await message.answer("❌ Ошибка загрузки писателя", reply_markup=get_main_keyboard())
+            await message.answer(
+                "❌ Ошибка загрузки писателя", 
+                reply_markup=get_main_keyboard()
+            )
     else:
-        await message.answer("❌ Ошибка выбора писателя", reply_markup=get_main_keyboard())
+        await message.answer(
+            "❌ Ошибка выбора писателя", 
+            reply_markup=get_main_keyboard()
+        )
 
 
-@dp.message(F.text == "🔙 В меню")
+@dp.message(F.text == "🔙 Назад")
 async def back_to_menu(message: types.Message):
     """Go back to main menu"""
     await message.answer(
-        "Вы вернулись в главное меню. Выберите режим работы.",
+        f"🔙 Вернулись в главное меню\n\n"
+        f"Выберите режим работы или напишите вопрос.",
         reply_markup=get_main_keyboard()
     )
 
 
 @dp.message()
 async def handle_text(message: types.Message):
-    """Handle text messages - routes to writer or Q&A"""
+    """Handle text messages - routes to writer or Q&A with modern design"""
     user_id = message.from_user.id
     question = message.text
     
@@ -267,28 +389,65 @@ async def handle_text(message: types.Message):
             logger.info(f"Switching to writer mode: {current_writer}")
             response = await talk_to_writer(user_id, question)
             writer_info = get_writer_info(current_writer)
-            prefix = f"**{writer_info['name']}**: " if writer_info else ""
+            
+            # Format writer response
+            if writer_info:
+                formatted_response = f"""
+{SUBSEP}
+    📖 {writer_info['name']} отвечает:
+{SUBSEP}
+
+{response}
+
+{SUBSEP}
+"""
+            else:
+                formatted_response = response
+            
+            final_response = formatted_response
         else:
             # Regular Q&A mode
             logger.info(f"Switching to Q&A mode")
             response = await answer_literature_question(user_id, question)
-            prefix = ""
+            
+            # Add decorative border
+            final_response = f"""
+{SUBSEP}
+    🔍 АНАЛИЗ ЗАПРОСА
+{SUBSEP}
+
+{response}
+"""
         
         logger.info(f"✓ Response generated: {response[:50]}...")
         
         if not response:
-            response = "Мне нужен момент, чтобы подумать. Пожалуйста, попробуйте снова."
+            final_response = (
+                "🤔 Мне нужен момент, чтобы подумать.\n"
+                "Пожалуйста, попробуйте снова."
+            )
             logger.warning("Empty response, using default")
         
-        # Send response
-        await message.answer(prefix + response, parse_mode="Markdown", reply_markup=get_main_keyboard())
+        # Send response with main keyboard
+        await message.answer(
+            final_response, 
+            parse_mode="Markdown", 
+            reply_markup=get_main_keyboard()
+        )
         logger.info(f"✅ Response sent to user {user_id}")
         
     except Exception as e:
         logger.error(f"❌ ERROR processing message: {e}", exc_info=True)
         try:
+            error_msg = (
+                f"{SEPARATOR}\n"
+                f"❌ ОШИБКА\n"
+                f"{SEPARATOR}\n\n"
+                f"Что-то пошло не так при обработке вашего вопроса.\n"
+                f"Пожалуйста, попробуйте снова."
+            )
             await message.answer(
-                "⚠️ Что-то пошло не так. Пожалуйста, попробуйте снова.",
+                error_msg,
                 reply_markup=get_main_keyboard()
             )
             logger.info("✓ Error message sent to user")
@@ -299,7 +458,7 @@ async def handle_text(message: types.Message):
 async def main():
     """Main function to start the bot"""
     logger.info("🚀 Starting Literary ChatGPT...")
-    logger.info("🧠 Mode: Autonomous Neural Network")
+    logger.info("🧠 Mode: Autonomous Neural Network (Modern UI)")
     logger.info("📚 Sources: Claude 3.5 Sonnet + Wikipedia")
     logger.info("=" * 60)
     
