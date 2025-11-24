@@ -2,12 +2,16 @@
 Neural Network Brain - Claude 3.5 Sonnet Integration
 Integrates with OpenRouter API for autonomous literary analysis
 Enhanced with comprehensive literature knowledge base
+Fallback: Local knowledge base when API is unavailable
 """
 import aiohttp
 import logging
 from typing import Optional, Dict, List
 from config import OPENROUTER_API_KEY
-from literature_knowledge import generate_literature_context, get_literature_system_prompt
+from literature_knowledge import (
+    generate_literature_context, get_literature_system_prompt,
+    get_writer_knowledge, get_work_knowledge, get_movement_knowledge
+)
 import json
 from datetime import datetime
 
@@ -16,6 +20,54 @@ logger = logging.getLogger(__name__)
 # Store user conversation history
 user_conversations: Dict[int, List[Dict]] = {}
 MAX_MEMORY = 30  # Maximum messages to remember per user
+
+def generate_offline_answer(question: str) -> str:
+    """Generate answer from local knowledge base when API is unavailable"""
+    try:
+        # Check if question is about first work
+        q_lower = question.lower()
+        is_first_work_question = any(word in q_lower for word in ['первое', 'first', 'début', 'начал'])
+        
+        # Get context from knowledge base
+        writer = get_writer_knowledge(question)
+        work = get_work_knowledge(question)
+        movement = get_movement_knowledge(question)
+        
+        answer_parts = []
+        
+        if writer:
+            answer_parts.append(f"📖 **{writer['name']}** ({writer['period']})\n")
+            
+            if is_first_work_question and writer.get('works'):
+                answer_parts.append(f"First major work: **{writer['works'][0]}**\n")
+                answer_parts.append(f"Other notable works: {', '.join(writer['works'][1:4])}\n")
+            else:
+                answer_parts.append(f"Major works: {', '.join(writer['works'][:5])}\n")
+            
+            if writer.get('quotes'):
+                answer_parts.append(f"Famous quote: \"{writer['quotes'][0]}\"\n")
+        
+        if work:
+            answer_parts.append(f"📚 **{work['title']}** by {work['author']} ({work['year']})\n")
+            answer_parts.append(f"Themes: {', '.join(work['themes'])}\n")
+            if work.get('quotes'):
+                answer_parts.append(f"Quote: \"{work['quotes'][0]}\"\n")
+        
+        if movement:
+            answer_parts.append(f"🎨 **{movement['name']}** ({movement['period']})\n")
+            answer_parts.append(f"Characteristics: {', '.join(movement['characteristics'][:3])}\n")
+        
+        if answer_parts:
+            answer = "".join(answer_parts)
+            answer += "\n\n💡 *Ответ из локальной базы знаний (API недоступен)*"
+            logger.info(f"Offline answer generated for question: {question[:50]}")
+            return answer
+        else:
+            return "📚 Я не нашел информацию в своей базе знаний. Попробуйте переформулировать вопрос."
+    
+    except Exception as e:
+        logger.error(f"Error generating offline answer: {e}")
+        return "⚠️ Не удалось обработать вопрос. Попробуйте позже."
 
 async def get_wikipedia_context(query: str) -> str:
     """Fetch context from Wikipedia using aiohttp"""
@@ -125,11 +177,33 @@ async def answer_literature_question(user_id: int, question: str) -> str:
                 else:
                     error_data = await resp.text()
                     logger.error(f"OpenRouter API error {resp.status}: {error_data}")
-                    return "⚠️ API error. Please try again."
+                    logger.info("Falling back to offline knowledge base")
+                    # Use offline knowledge base as fallback
+                    offline_answer = generate_offline_answer(question)
+                    
+                    # Store in memory
+                    user_conversations[user_id].append({"role": "user", "content": question})
+                    user_conversations[user_id].append({"role": "assistant", "content": offline_answer})
+                    
+                    if len(user_conversations[user_id]) > MAX_MEMORY:
+                        user_conversations[user_id] = user_conversations[user_id][-MAX_MEMORY:]
+                    
+                    return offline_answer
     
     except Exception as e:
         logger.error(f"Error generating response: {e}")
-        return f"⚠️ Error: {str(e)}"
+        logger.info("Falling back to offline knowledge base due to exception")
+        # Use offline knowledge base as fallback
+        offline_answer = generate_offline_answer(question)
+        
+        # Store in memory
+        user_conversations[user_id].append({"role": "user", "content": question})
+        user_conversations[user_id].append({"role": "assistant", "content": offline_answer})
+        
+        if len(user_conversations[user_id]) > MAX_MEMORY:
+            user_conversations[user_id] = user_conversations[user_id][-MAX_MEMORY:]
+        
+        return offline_answer
 
 def clear_user_memory(user_id: int) -> None:
     """Clear conversation history for a user"""
