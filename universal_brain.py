@@ -45,6 +45,10 @@ class UniversalBrain:
             writer_name = author_data.get('name', 'Unknown')
             writer_dates = author_data.get('dates', '')
             
+            # Определить категорию вопроса для контекстного ответа
+            from smart_responder import smart_responder
+            question_category = smart_responder.categorize_question(question)
+            
             system = f"""You are the world's leading expert in literature, philosophy, and human culture, with encyclopedic knowledge spanning all centuries and civilizations.
 
 📚 EXPERT PROFILE:
@@ -105,7 +109,7 @@ This is the writer you're discussing. Contextualize all responses through their 
                 "messages": messages,
                 "system": system,
                 "max_tokens": 2000,
-                "temperature": 0.8,  # Немного выше для творчества
+                "temperature": 0.85,
                 "top_p": 0.95,
                 "top_k": 40,
             }
