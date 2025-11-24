@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import { OpenAI } from 'openai';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -11,10 +10,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  baseURL: 'https://openrouter.io/api/v1',
-});
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 const writers = {
   pushkin: {
@@ -72,6 +68,10 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: 'Неверный ID писателя' });
     }
 
+    if (!OPENROUTER_API_KEY) {
+      return res.status(500).json({ error: 'API key not configured' });
+    }
+
     const writer = writers[writerId];
     
     const systemPrompt = `Ты воплощаешь личность ${writer.name}.
@@ -92,20 +92,36 @@ ${writer.style}
       { role: 'user', content: message }
     ];
 
-    const response = await openai.chat.completions.create({
-      model: 'anthropic/claude-3.5-sonnet',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...messages
-      ],
-      temperature: 0.9,
-      max_tokens: 1000,
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://replit.com',
+        'X-Title': 'LiteraryBot'
+      },
+      body: JSON.stringify({
+        model: 'anthropic/claude-3.5-sonnet',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...messages
+        ],
+        temperature: 0.9,
+        max_tokens: 1000
+      })
     });
 
-    const assistantMessage = response.choices[0].message.content;
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('OpenRouter Error:', error);
+      return res.status(500).json({ error: 'Ошибка при генерации ответа' });
+    }
+
+    const data = await response.json();
+    const assistantMessage = data.choices[0].message.content;
     res.json({ response: assistantMessage });
   } catch (error) {
-    console.error('OpenAI Error:', error);
+    console.error('Error:', error);
     res.status(500).json({ error: 'Ошибка при генерации ответа' });
   }
 });
