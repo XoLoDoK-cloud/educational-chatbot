@@ -262,12 +262,20 @@ You lived in a specific era with its unique challenges, opportunities, and world
 brain = UniversalBrain()
 
 async def generate_response(user_id, question, author_data):
-    """Main API for expert mode"""
+    """Main API for expert mode - answer about any writer intelligently"""
     try:
         return await brain.think(user_id, question, author_data)
     except Exception as e:
         logger.error(f"Error in generate_response: {e}")
         # Fallback to local response
+        return _local_response(question, author_data)
+
+async def generate_general_response(user_id, question, author_data):
+    """Generate response about any writer - not locked to one"""
+    try:
+        return await brain.think(user_id, question, author_data)
+    except Exception as e:
+        logger.error(f"Error in generate_general_response: {e}")
         return _local_response(question, author_data)
 
 async def generate_dialogue_response(user_id, question, author_data):
