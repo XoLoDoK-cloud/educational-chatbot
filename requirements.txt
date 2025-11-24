@@ -4,3 +4,9 @@ aiohttp==3.12.15
 beautifulsoup4==4.14.2
 wikipedia-api==0.8.1
 requests==2.32.5
+aiogram
+aiohttp
+beautifulsoup4
+python-dotenv
+requests
+wikipedia-api
