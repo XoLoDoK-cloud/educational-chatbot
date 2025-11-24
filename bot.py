@@ -233,20 +233,30 @@ async def try_direct_writer_input(message: types.Message):
 
 
 async def handle_message(message: types.Message):
-    """Main handler"""
+    """Main handler - can answer about any writer"""
     user_id = message.from_user.id
     text = message.text
     
-    writer_key = user_sessions[user_id]
+    # Try to find if user is asking about a specific writer
+    mentioned_writer = knowledge.search_by_name(text)
+    
+    # Use mentioned writer if found, otherwise use selected writer
+    if mentioned_writer:
+        writer_key = mentioned_writer
+    else:
+        writer_key = user_sessions[user_id]
+    
     author_data = load_author_data(writer_key)
     
     await message.bot.send_chat_action(message.chat.id, "typing")
     
     try:
-        logger.info(f"Generating response for user {user_id}")
+        logger.info(f"Generating response for user {user_id} about {author_data.get('name', 'Unknown')}")
         mode = user_modes.get(user_id, "expert")
         
-        if mode == "dialogue":
+        # Always use expert mode for general questions about any writer
+        # Only use dialogue mode if explicitly selected and asking about selected writer
+        if mode == "dialogue" and writer_key == user_sessions[user_id]:
             response = await generate_dialogue_response(user_id, text, author_data)
         else:
             response = await generate_response(user_id, text, author_data)
@@ -272,3 +282,40 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
+# ШАГ 5: Новые команды для расширенной функциональности
+@dp.message(F.text.in_(["📊 Статистика", "ℹ️ Информация", "🔍 Поиск"]))
+async def enhanced_mode_selector(message: types.Message):
+    """Выбор расширенного режима"""
+    user_id = message.from_user.id
+    
+    if message.text == "🔍 Поиск":
+        await message.answer(
+            "🔍 **Режим поиска**\n\n"
+            "Введите имя писателя, которого хотите найти:",
+            reply_markup=get_main_keyboard(),
+            parse_mode="Markdown"
+        )
+    elif message.text == "📊 Статистика":
+        from enhanced_commands import list_all_writers
+        result = list_all_writers()
+        await message.answer(result, parse_mode="Markdown", reply_markup=get_main_keyboard())
+    elif message.text == "ℹ️ Информация":
+        from enhanced_commands import get_preload_status
+        result = get_preload_status()
+        await message.answer(result, parse_mode="Markdown", reply_markup=get_main_keyboard())
+
+
+# Добавить новую кнопку в главное меню
+def get_main_keyboard_enhanced():
+    """Главное меню с расширенными опциями"""
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📚 Выбрать писателя"), KeyboardButton(text="🔍 Поиск")],
+            [KeyboardButton(text="💬 Диалог с писателем"), KeyboardButton(text="🎲 Случайный писатель")],
+            [KeyboardButton(text="📊 Статистика"), KeyboardButton(text="ℹ️ Информация")],
+            [KeyboardButton(text="❓ О боте")]
+        ],
+        resize_keyboard=True
+    )
