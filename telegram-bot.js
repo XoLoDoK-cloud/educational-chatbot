@@ -1,5 +1,6 @@
 import { Telegraf } from 'telegraf';
 import { writersKnowledge, systemPromptTemplate } from './writers-knowledge.js';
+import { trainingData, learningSystem } from './training-data.js';
 import { OpenAI } from 'openai';
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
@@ -15,8 +16,8 @@ const openai = new OpenAI({
 
 // Store user sessions
 const userSessions = {}; // { userId: { writerId, conversationHistory, corrections } }
-const userCorrections = {}; // { userId: [ corrections ] }
-const userFeedback = {}; // Track what ais doing well/poorly
+const userCorrections = {}; // { userId: [ corrections with HIGH priority ] }
+const globalLearnings = {}; // { writerId: [ all learned facts ] } - persistent learning
 
 // Get writer list
 const writers = Object.keys(writersKnowledge).map(key => ({
@@ -24,19 +25,35 @@ const writers = Object.keys(writersKnowledge).map(key => ({
   name: writersKnowledge[key].name
 }));
 
-// Enhanced system prompt with self-correction
-const enhancedSystemPrompt = (writerId, learningContext) => {
+// Enhanced system prompt with aggressive self-correction and learning
+const enhancedSystemPrompt = (writerId, learningContext, userLearnings) => {
   const basePrompt = systemPromptTemplate(writerId, learningContext);
+  const training = trainingData[writerId];
   
   return `${basePrompt}
 
-SELF-CORRECTION GUIDELINES:
-1. Always double-check factual information before answering
-2. If uncertain about dates, names, or plot details - verify from your knowledge
-3. If you detect a potential error in your response - CORRECT IT IMMEDIATELY
-4. Format corrections clearly: "Upon reflection, I should clarify that..."
-5. When correcting yourself, acknowledge the correction naturally
-6. Never make up details if unsure - admit uncertainty instead`;
+MANDATORY TRAINING DATA FOR THIS WRITER:
+${training ? Object.entries(training.dates || {}).map(([work, dates]) => 
+  `• ${work}: ${JSON.stringify(dates)}`).join('\n') : ''}
+
+${training && training.factChecklist ? `CRITICAL FACTS TO REMEMBER:
+${training.factChecklist.map(f => `✓ ${f}`).join('\n')}
+` : ''}
+
+SELF-CORRECTION & LEARNING PROTOCOL:
+1. BEFORE answering ANY factual question - VERIFY against your knowledge
+2. Check dates, names, character names, plot details - be PRECISE
+3. If uncertain - ADMIT IT rather than guess
+4. If you made an error in previous responses - SELF-CORRECT immediately
+5. Use phrases: "Upon reflection...", "Let me verify...", "I should clarify..."
+6. Learn from user corrections - integrate them into ALL future responses
+7. If user corrects you - acknowledge and remember for similar questions
+
+AGGRESSIVE ACCURACY MODE:
+- You are trusted to teach people about these writers
+- Factual errors are NOT acceptable
+- Always prioritize accuracy over brevity
+- Double-check information from the training data above`;
 };
 
 // Start command
@@ -178,7 +195,7 @@ bot.on('message', async (ctx) => {
   }
   
   if (message.startsWith('❌')) {
-    const correction = message.replace('❌', '').trim();
+    const fullText = message.replace('❌', '').trim();
     
     const session = userSessions[userId];
     if (!session || !session.writerId) {
@@ -186,26 +203,55 @@ bot.on('message', async (ctx) => {
       return;
     }
     
-    if (!correction) {
+    if (!fullText) {
       ctx.reply('Пожалуйста, напишите правильный ответ после ❌');
       return;
     }
     
-    // Store correction
+    // Store correction with user's original question
     if (!userCorrections[userId]) {
       userCorrections[userId] = [];
     }
     
-    userCorrections[userId].push({
+    // Get the last user question from conversation history
+    let lastQuestion = 'Вопрос неизвестен';
+    if (session.conversationHistory && session.conversationHistory.length > 0) {
+      for (let i = session.conversationHistory.length - 1; i >= 0; i--) {
+        if (session.conversationHistory[i].role === 'user') {
+          lastQuestion = session.conversationHistory[i].content;
+          break;
+        }
+      }
+    }
+    
+    const correction = {
       writerId: session.writerId,
-      correction,
-      timestamp: new Date().toISOString()
-    });
+      userMessage: lastQuestion,
+      correction: fullText,
+      timestamp: new Date().toISOString(),
+      userId: userId,
+      priority: 'critical'
+    };
+    
+    userCorrections[userId].push(correction);
+    
+    // Also store in global learnings for all users
+    if (!globalLearnings[session.writerId]) {
+      globalLearnings[session.writerId] = [];
+    }
+    globalLearnings[session.writerId].push(`When asked about: "${lastQuestion}" → Answer: "${fullText}"`);
+    
+    const totalCorrections = userCorrections[userId].length;
+    const writerCorrections = userCorrections[userId].filter(c => c.writerId === session.writerId).length;
     
     ctx.reply(
-      `✅ Спасибо за исправление! Я запомнил это.\n\n` +
-      `📚 Всего исправлений: ${userCorrections[userId].length}\n\n` +
-      `🧠 Я стану более точным благодаря вам!`
+      `✅ *Спасибо за исправление!* Я запомнил это.\n\n` +
+      `📊 *Статистика обучения:*\n` +
+      `• Ваши исправления: ${totalCorrections}\n` +
+      `• Для ${writersKnowledge[session.writerId].name}: ${writerCorrections}\n\n` +
+      `🧠 *Я стану более точным благодаря вам!*\n` +
+      `💡 Это исправление будет использоваться в следующих ответах`,
+      { parse_mode: 'Markdown' }
     );
     return;
   }
@@ -230,23 +276,38 @@ bot.on('message', async (ctx) => {
   await ctx.sendChatAction('typing');
   
   try {
-    // Build learning context with MORE emphasis on corrections
+    // Build learning context with MAXIMUM emphasis on corrections
     let learningContext = '';
+    let globalContext = '';
+    
     const corrections = userCorrections[userId] || [];
     const writerCorrections = corrections
       .filter(c => c.writerId === session.writerId)
-      .slice(-10); // Use last 10 corrections for better learning
+      .slice(-15); // Use last 15 corrections for better learning
+    
+    // Global learnings across all users
+    const globalWriterLearnings = globalLearnings[session.writerId] || [];
     
     if (writerCorrections.length > 0) {
-      learningContext = `CRITICAL - USER CORRECTIONS TO REMEMBER (THESE ARE IMPORTANT):\n`;
+      learningContext = `CRITICAL - USER'S PERSONAL CORRECTIONS (HIGHEST PRIORITY):\n`;
       writerCorrections.forEach((c, idx) => {
-        learningContext += `${idx + 1}. ${c.correction}\n`;
+        learningContext += `${idx + 1}. USER SAID: "${c.userMessage}"\n`;
+        learningContext += `   CORRECT ANSWER: "${c.correction}"\n`;
+        learningContext += `   → USE THIS IN ALL SIMILAR QUESTIONS\n\n`;
       });
-      learningContext += `\nVERY IMPORTANT: Make sure you know and use these corrections in your responses!\n`;
     }
     
-    // Create enhanced system prompt with self-correction
-    const systemPrompt = enhancedSystemPrompt(session.writerId, learningContext);
+    if (globalWriterLearnings.length > 0) {
+      globalContext = `GLOBAL COMMUNITY CORRECTIONS (EVERYONE'S LEARNINGS):\n`;
+      globalWriterLearnings.slice(-5).forEach((fact, idx) => {
+        globalContext += `${idx + 1}. ${fact}\n`;
+      });
+    }
+    
+    const finalContext = learningContext + (globalContext ? '\n' + globalContext : '');
+    
+    // Create enhanced system prompt with training data
+    const systemPrompt = enhancedSystemPrompt(session.writerId, finalContext, globalWriterLearnings);
     
     // Prepare messages - include more conversation history for better context
     const messages = [
