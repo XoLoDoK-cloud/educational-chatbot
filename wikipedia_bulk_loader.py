@@ -5,7 +5,10 @@
 import asyncio
 import aiohttp
 import json
+import logging
 from typing import List, Dict, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class WikipediaBulkLoader:
@@ -15,6 +18,7 @@ class WikipediaBulkLoader:
         self.wiki_url = "https://en.wikipedia.org/w/api.php"
         self.cache_file = "writers_bulk_cache.json"
         self.cache = self._load_cache()
+        self.timeout = aiohttp.ClientTimeout(total=10)
     
     def _load_cache(self) -> Dict:
         """Загрузить кэш"""
@@ -35,33 +39,44 @@ class WikipediaBulkLoader:
     async def search_writers_by_category(self, category: str, limit: int = 30) -> List[str]:
         """Поиск писателей в категории Wikipedia"""
         try:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(timeout=self.timeout) as session:
                 params = {
                     'action': 'query',
                     'format': 'json',
                     'list': 'categorymembers',
                     'cmtitle': f'Category:{category}',
                     'cmlimit': limit,
-                    'cmtype': 'page'
+                    'cmtype': 'page',
+                    'cmsort': 'timestamp',
                 }
                 
+                logger.info(f"Searching Wikipedia category: {category}")
                 async with session.get(self.wiki_url, params=params) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         members = data.get('query', {}).get('categorymembers', [])
-                        return [m['title'] for m in members]
-        except:
-            pass
+                        result = [m['title'] for m in members]
+                        logger.info(f"Found {len(result)} writers in {category}")
+                        return result
+                    else:
+                        logger.warning(f"Wikipedia API returned {resp.status}")
+        except asyncio.TimeoutError:
+            logger.warning(f"Timeout searching category {category}")
+        except aiohttp.ClientError as e:
+            logger.error(f"Network error: {e}")
+        except Exception as e:
+            logger.error(f"Error searching category {category}: {e}")
         
         return []
     
     async def get_writer_details(self, writer_name: str) -> Optional[Dict]:
         """Получить детали писателя"""
         if writer_name in self.cache:
+            logger.debug(f"Cache hit for {writer_name}")
             return self.cache[writer_name]
         
         try:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(timeout=self.timeout) as session:
                 params = {
                     'action': 'query',
                     'format': 'json',
@@ -73,6 +88,7 @@ class WikipediaBulkLoader:
                     'pithumbsize': 300
                 }
                 
+                logger.info(f"Fetching details for {writer_name}")
                 async with session.get(self.wiki_url, params=params) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -89,10 +105,17 @@ class WikipediaBulkLoader:
                                 
                                 self.cache[writer_name] = result
                                 self._save_cache()
+                                logger.info(f"Cached {writer_name}")
                                 
                                 return result
-        except:
-            pass
+                    else:
+                        logger.warning(f"Wikipedia returned {resp.status} for {writer_name}")
+        except asyncio.TimeoutError:
+            logger.warning(f"Timeout fetching {writer_name}")
+        except aiohttp.ClientError as e:
+            logger.error(f"Network error fetching {writer_name}: {e}")
+        except Exception as e:
+            logger.error(f"Error fetching {writer_name}: {e}")
         
         return None
     
