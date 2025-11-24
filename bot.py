@@ -249,38 +249,51 @@ async def handle_text(message: types.Message):
     user_id = message.from_user.id
     question = message.text
     
-    # Show typing indicator
-    await bot.send_chat_action(message.chat.id, "typing")
+    logger.info(f"📨 MESSAGE RECEIVED from user {user_id}: {question[:100]}")
     
     try:
-        logger.info(f"User {user_id} asked: {question[:100]}")
+        # Show typing indicator
+        await bot.send_chat_action(message.chat.id, "typing")
+        logger.info(f"✓ Typing indicator sent")
+        
+        logger.info(f"Processing question: {question[:50]}...")
         
         # Check if user has selected a writer
         current_writer = get_user_writer(user_id)
+        logger.info(f"Current writer: {current_writer}")
         
         if current_writer:
             # Talk with writer mode
+            logger.info(f"Switching to writer mode: {current_writer}")
             response = await talk_to_writer(user_id, question)
             writer_info = get_writer_info(current_writer)
             prefix = f"**{writer_info['name']}**: " if writer_info else ""
         else:
             # Regular Q&A mode
+            logger.info(f"Switching to Q&A mode")
             response = await answer_literature_question(user_id, question)
             prefix = ""
         
+        logger.info(f"✓ Response generated: {response[:50]}...")
+        
         if not response:
             response = "Мне нужен момент, чтобы подумать. Пожалуйста, попробуйте снова."
+            logger.warning("Empty response, using default")
         
         # Send response
         await message.answer(prefix + response, parse_mode="Markdown", reply_markup=get_main_keyboard())
-        logger.info(f"Response sent to user {user_id}")
+        logger.info(f"✅ Response sent to user {user_id}")
         
     except Exception as e:
-        logger.error(f"Error processing message: {e}")
-        await message.answer(
-            "⚠️ Что-то пошло не так. Пожалуйста, попробуйте снова.",
-            reply_markup=get_main_keyboard()
-        )
+        logger.error(f"❌ ERROR processing message: {e}", exc_info=True)
+        try:
+            await message.answer(
+                "⚠️ Что-то пошло не так. Пожалуйста, попробуйте снова.",
+                reply_markup=get_main_keyboard()
+            )
+            logger.info("✓ Error message sent to user")
+        except Exception as send_err:
+            logger.error(f"❌ Failed to send error message: {send_err}")
 
 
 async def main():
