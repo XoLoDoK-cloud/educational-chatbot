@@ -17,3 +17,7 @@ flask
 python-dotenv
 requests
 wikipedia-api
+
+# Web scraping and advanced features (already installed)
+# beautifulsoup4 4.14.2 - HTML parsing
+# aiohttp 3.12.15 - Async HTTP
