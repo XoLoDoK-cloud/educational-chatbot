@@ -47,11 +47,16 @@ class SmartResponder:
         r'biography',
         r'life',
         r'родился',
+        r'когда',
         r'когда.*жил',
+        r'когда.*родился',
         r'расскажи.*о.*своей\s+жизни',
         r'tell.*about.*life',
         r'история.*жизни',
         r'жизненный\s+путь',
+        r'даты',
+        r'дата\s+рождения',
+        r'birth\s+date',
     ]
     
     INFLUENCE_PATTERNS = [
