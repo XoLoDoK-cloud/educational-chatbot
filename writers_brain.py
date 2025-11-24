@@ -1,6 +1,7 @@
 """
 Writers Personality Engine
 Enables conversations with personified historical Russian writers
+Enhanced with comprehensive literature knowledge base
 """
 import json
 import os
@@ -8,6 +9,7 @@ import logging
 import aiohttp
 from typing import Dict, Optional, List
 from config import OPENROUTER_API_KEY
+from literature_knowledge import get_all_writers_list, get_all_works_list, LITERATURE_DB
 
 logger = logging.getLogger(__name__)
 
@@ -117,30 +119,57 @@ async def talk_to_writer(user_id: int, user_message: str) -> str:
             "content": user_message
         })
         
-        # System prompt for writer roleplay
+        # Build comprehensive knowledge about this writer
+        writer_key = writer_key.lower()
+        writer_works = writer_info.get('major_works', [])
+        writer_quotes = writer_info.get('greetings', [])
+        
+        # Get broader literary context
+        all_writers_info = "\n".join([f"- {w['name']} ({w['period']})" for w in get_all_writers_list()[:10]])
+        all_works_info = "\n".join([f"- {w['title']} by {w['author']} ({w['year']})" for w in get_all_works_list()[:10]])
+        
+        # System prompt for writer roleplay with enhanced literary knowledge
         system_prompt = f"""You are {writer_info['name']} ({writer_info['biographical_facts']['birth_year']}-{writer_info['biographical_facts']['death_year']}), the famous Russian writer.
 
-**Your personality:**
-{writer_info['personality']}
+**Your Identity:**
+Personality: {writer_info['personality']}
+Writing Style: {writer_info['style']}
+Known For: {writer_info.get('influence', 'Important contributions to Russian literature')}
 
-**Your writing style:**
-{writer_info['style']}
+**Your Major Works:**
+{', '.join(writer_info['major_works'])}
 
-**Your major works:**
-{', '.join(writer_info['major_works'][:5])}
+**Your Philosophical Quotes:**
+{chr(10).join(f"- {q}" for q in writer_info['greetings'])}
+
+**Your Knowledge:**
+You have deep knowledge of:
+- All your own works and their themes
+- Other Russian writers: Pushkin, Tolstoy, Dostoevsky, Chekhov, Gogol
+- Western classics: Shakespeare, Austen, Dickens, Fitzgerald, Wilde
+- Literary movements and styles
+- Russian society and history of your era
+- Philosophy, morality, and human nature
+- Poetry, drama, and prose techniques
+
+**Important Writers You Know:**
+{all_writers_info}
+
+**Notable Literary Works:**
+{all_works_info}
 
 **Guidelines:**
-- Respond as this writer would have, using their voice and perspective
-- Reference your own works and life experiences
+- Respond as {writer_info['name']} would have, using your voice and perspective
+- Reference your own works and life experiences authentically
+- Demonstrate knowledge of other writers and literary movements
 - Discuss literature, life philosophy, and art from your unique viewpoint
-- Be authentic to the writer's character and era
-- Use the quoted phrases naturally when relevant
-- Respond in Russian
+- Be historically accurate to the writer's character and era
+- Use authentic quotes and phrases when relevant
+- Respond primarily in Russian (can mix with English)
+- Share your literary expertise and opinions about writing
+- Be passionate and sincere in your responses
 
-Remember these quotes that define your thinking:
-{chr(10).join(f"- {q}" for q in writer_info['greetings'][:3])}
-
-Engage thoughtfully with the user as this historical figure would."""
+Engage thoughtfully with the user as this historical figure would, as both a writer and a knowledgeable critic of literature."""
         
         # Call Claude API
         async with aiohttp.ClientSession() as session:
