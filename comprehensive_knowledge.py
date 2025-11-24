@@ -577,12 +577,35 @@ class WritersExpertBase:
         }
 
     def search_by_name(self, query):
-        """Search writers by name in query"""
+        """Search writers by name in query - handles Russian cases"""
         query_lower = query.lower()
+        
+        # Russian case variations for common surnames
+        russian_variations = {
+            'гоголь': ['гоголь', 'гоголе', 'гоголя', 'гоголем', 'гоголю'],
+            'толстой': ['толстой', 'толстого', 'толстому'],
+            'пушкин': ['пушкин', 'пушкине', 'пушкина', 'пушкину'],
+            'достоевский': ['достоевский', 'достоевского', 'достоевскому', 'достоевском'],
+            'турgenev': ['тургенев', 'тургенева', 'тургеневу', 'тургеневе'],
+            'чехов': ['чехов', 'чехова', 'чехову', 'чехове'],
+            'лермонтов': ['лермонтов', 'лермонтова', 'лермонтову', 'лермонтове'],
+        }
+        
+        # Direct search first
         for key, info in self.writers_db.items():
             name_parts = info['name'].lower().split()
             if any(part in query_lower for part in name_parts):
                 return key
+        
+        # Russian case variation search
+        for last_name_base, variations in russian_variations.items():
+            for var in variations:
+                if var in query_lower:
+                    # Find the writer with this surname
+                    for key, info in self.writers_db.items():
+                        if last_name_base in info['name'].lower():
+                            return key
+        
         return None
 
     def get_expert_text(self, writer_key, question):
