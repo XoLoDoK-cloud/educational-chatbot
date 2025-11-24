@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Литературный собеседник - Русская литература</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+            max-height: 800px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px 15px 0 0;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+        
+        .message {
+            margin-bottom: 20px;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .user-message {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 15px;
+        }
+        
+        .user-message .bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 18px;
+            border-radius: 18px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+        
+        .bot-message {
+            display: flex;
+            justify-content: flex-start;
+            margin-bottom: 15px;
+        }
+        
+        .bot-message .bubble {
+            background: white;
+            color: #333;
+            padding: 15px;
+            border-radius: 15px;
+            max-width: 100%;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        
+        .input-area {
+            border-top: 1px solid #e0e0e0;
+            padding: 20px;
+            background: white;
+            border-radius: 0 0 15px 15px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .input-area input {
+            flex: 1;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            padding: 12px 20px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        
+        .input-area input:focus {
+            border-color: #667eea;
+        }
+        
+        .input-area button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .input-area button:hover {
+            transform: scale(1.05);
+        }
+        
+        .input-area button:active {
+            transform: scale(0.95);
+        }
+        
+        .loading {
+            text-align: center;
+            color: #667eea;
+            font-size: 14px;
+        }
+        
+        .welcome {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin: 30px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 Литературный собеседник</h1>
+            <p>Узнайте о великих русских писателях</p>
+        </div>
+        
+        <div class="chat-area" id="chatArea">
+            <div class="welcome">
+                <p>Добро пожаловать! 👋</p>
+                <p>Спросите меня о русских писателях: Пушкине, Лермонтове, Достоевском и других.</p>
+                <p>Я всегда отвечаю на русском языке! 🇷🇺</p>
+            </div>
+        </div>
+        
+        <div class="input-area">
+            <input type="text" id="userInput" placeholder="Напишите вопрос о русской литературе..." onkeypress="handleKeyPress(event)">
+            <button onclick="sendMessage()">Отправить</button>
+        </div>
+    </div>
+    
+    <script>
+        function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Display user message
+            addMessage(message, 'user');
+            input.value = '';
+            
+            // Show loading state
+            showLoading();
+            
+            // Send to server
+            fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ query: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                removeLoading();
+                addMessage(data.response, 'bot');
+            })
+            .catch(error => {
+                removeLoading();
+                console.error('Error:', error);
+                addMessage('Ошибка при получении ответа. Пожалуйста, попробуйте еще раз.', 'bot');
+            });
+        }
+        
+        function addMessage(text, sender) {
+            const chatArea = document.getElementById('chatArea');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.textContent = text;
+            
+            messageDiv.appendChild(bubble);
+            chatArea.appendChild(messageDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+        
+        function showLoading() {
+            const chatArea = document.getElementById('chatArea');
+            const loading = document.createElement('div');
+            loading.className = 'loading';
+            loading.id = 'loading';
+            loading.textContent = '⏳ Подожди, получаю ответ...';
+            chatArea.appendChild(loading);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+        
+        function removeLoading() {
+            const loading = document.getElementById('loading');
+            if (loading) loading.remove();
+        }
+        
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+        
+        // Focus input on load
+        document.getElementById('userInput').focus();
+    </script>
+</body>
+</html>
