@@ -32,9 +32,9 @@ def get_main_keyboard():
     """Main menu keyboard"""
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="❓ Ask Question"), KeyboardButton(text="👥 Talk with Writers")],
-            [KeyboardButton(text="🧹 Clear Memory"), KeyboardButton(text="ℹ️ About")],
-            [KeyboardButton(text="🆘 Help")]
+            [KeyboardButton(text="❓ Вопрос о литературе"), KeyboardButton(text="👥 Беседа с писателем")],
+            [KeyboardButton(text="🧹 Очистить память"), KeyboardButton(text="ℹ️ О боте")],
+            [KeyboardButton(text="🆘 Справка")]
         ],
         resize_keyboard=True
     )
@@ -46,7 +46,7 @@ def get_writers_keyboard():
     keyboard = []
     for writer in writers:
         keyboard.append([KeyboardButton(text=f"📖 {writer['name']}")])
-    keyboard.append([KeyboardButton(text="🔙 Back to Menu")])
+    keyboard.append([KeyboardButton(text="🔙 В меню")])
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
@@ -74,7 +74,7 @@ async def cmd_start(message: types.Message):
 
 
 @dp.message(Command("help"))
-@dp.message(F.text == "🆘 Help")
+@dp.message(F.text == "🆘 Справка")
 async def cmd_help(message: types.Message):
     """Help command"""
     help_text = """
@@ -85,34 +85,37 @@ async def cmd_help(message: types.Message):
 ✓ Углублённо анализировать произведения
 ✓ Сравнивать авторов и их стили
 ✓ Обсуждать историю литературы
-✓ НОВОЕ: Поговорить как исторический писатель!
+✓ Поговорить как исторический писатель!
 
 **Два режима работы:**
 
-**1️⃣ РЕЖИМ ВОПРОСОВ (❓ Ask Question)**
+**1️⃣ РЕЖИМ ВОПРОСОВ (❓ Вопрос о литературе)**
 • Задавайте вопросы о литературе
-• Получайте ответы от AI Claude
+• Получайте ответы от AI Claude 3.5 Sonnet
 • Примеры:
   - О стиле Достоевского
   - Что такое романтизм?
   - Анализ "Войны и мира"
+  - Сравните Пушкина и Толстого
 
-**2️⃣ РЕЖИМ БЕСЕД С ПИСАТЕЛЯМИ (👥 Talk with Writers)**
+**2️⃣ РЕЖИМ БЕСЕД С ПИСАТЕЛЯМИ (👥 Беседа с писателем)**
 • Выберите писателя из списка:
-  📖 Александр Пушкин
-  📖 Лев Толстой
-  📖 Фёдор Достоевский
-  📖 Антон Чехов
-  📖 Николай Гоголь
+  📖 Александр Пушкин (1799-1837)
+  📖 Лев Толстой (1828-1910)
+  📖 Фёдор Достоевский (1821-1881)
+  📖 Антон Чехов (1860-1904)
+  📖 Николай Гоголь (1809-1852)
 • Беседуйте как с историческим персоналием!
 • Узнавайте их мысли и философию
+• Писатели обсуждают литературу глубоко!
 
 **Особенности:**
-🧠 AI Claude 3.5 Sonnet
-📚 Википедия контекст
-💭 Сохранение разговоров
-🎭 Персоналии писателей
-🌍 Мировая литература
+🧠 AI Claude 3.5 Sonnet (продвинутый)
+📚 Полная база знаний о литературе
+💭 Сохранение разговоров (30 сообщений)
+🎭 Подлинные персоналии писателей
+🌍 Мировая и русская литература
+🎓 Анализ литературных произведений
 
 Начните с выбора режима!
 """
@@ -120,7 +123,7 @@ async def cmd_help(message: types.Message):
 
 
 @dp.message(Command("about"))
-@dp.message(F.text == "ℹ️ About")
+@dp.message(F.text == "ℹ️ О боте")
 async def cmd_about(message: types.Message):
     """About command"""
     about_text = """
@@ -163,27 +166,27 @@ async def cmd_about(message: types.Message):
 
 
 @dp.message(Command("clear"))
-@dp.message(F.text == "🧹 Clear Memory")
+@dp.message(F.text == "🧹 Очистить память")
 async def cmd_clear(message: types.Message):
     """Clear conversation history"""
     user_id = message.from_user.id
     clear_user_memory(user_id)
     await message.answer(
-        "✅ Conversation memory cleared. You can start fresh with new questions.",
+        "✅ Память разговора очищена. Вы можете начать с новыми вопросами!",
         reply_markup=get_main_keyboard()
     )
 
 
-@dp.message(F.text == "❓ Ask Question")
+@dp.message(F.text == "❓ Вопрос о литературе")
 async def cmd_ask(message: types.Message):
     """Prompt for question"""
     await message.answer(
-        "📝 Go ahead and ask your question about literature!",
+        "📝 Задайте ваш вопрос о литературе! Я помогу вам найти ответ.",
         reply_markup=get_main_keyboard()
     )
 
 
-@dp.message(F.text == "👥 Talk with Writers")
+@dp.message(F.text == "👥 Беседа с писателем")
 async def cmd_talk_writers(message: types.Message):
     """Show available writers"""
     writers = get_available_writers()
@@ -228,11 +231,11 @@ async def select_writer(message: types.Message):
         await message.answer("❌ Ошибка выбора писателя", reply_markup=get_main_keyboard())
 
 
-@dp.message(F.text == "🔙 Back to Menu")
+@dp.message(F.text == "🔙 В меню")
 async def back_to_menu(message: types.Message):
     """Go back to main menu"""
     await message.answer(
-        "Вы вернулись в главное меню.",
+        "Вы вернулись в главное меню. Выберите режим работы.",
         reply_markup=get_main_keyboard()
     )
 
