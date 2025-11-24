@@ -15,6 +15,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from config import BOT_TOKEN
 from universal_brain import generate_response, generate_dialogue_response, clear_memory
 from literary_knowledge import search_literature, get_works, answer_question
+from comprehensive_knowledge import knowledge
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
