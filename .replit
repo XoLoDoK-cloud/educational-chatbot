@@ -34,3 +34,7 @@ outputType = "console"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python start.py"
+
+[[ports]]
+localPort = 45571
+externalPort = 3000
