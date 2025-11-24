@@ -1,0 +1,26 @@
+{
+  "12345": {
+    "user_id": 12345,
+    "joined_date": "2025-11-24T18:13:52.114217",
+    "questions_asked": 1,
+    "messages_count": 1,
+    "writers_talked": [],
+    "quiz_score": 0,
+    "avg_rating": 0.0,
+    "achievements": [
+      "test_badge"
+    ],
+    "favorite_writer": null,
+    "interaction_history": [
+      {
+        "type": "question",
+        "content": "Test question",
+        "timestamp": "2025-11-24T18:13:52.114289"
+      }
+    ],
+    "learning_progress": {
+      "topics_learned": [],
+      "response_quality": 0.0
+    }
+  }
+}
