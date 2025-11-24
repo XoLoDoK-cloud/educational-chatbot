@@ -153,18 +153,20 @@ async def set_writer(message: types.Message):
 @dp.message(F.text == "🎲 Случайный писатель")
 async def random_writer(message: types.Message):
     """Random writer"""
-    from comprehensive_knowledge import get_portrait
+    from comprehensive_knowledge import knowledge
     
     user_id = message.from_user.id
-    key = random.choice(list(writers.keys()))
+    key = random.choice(list(knowledge.writers_db.keys()))
     user_sessions[user_id] = key
     clear_memory(user_id)
     
     data = load_author_data(key)
+    writer_name = data.get('name', 'Unknown')
     
-    # Send greeting
+    # Send greeting WITH WRITER NAME
     await message.answer(
         f"🎲 Волшебство выбрало этого писателя!\n\n"
+        f"📖 **{writer_name}**\n\n"
         f"Отличный выбор! Давайте погрузимся в его творческий мир.\n\n"
         f"_Спрашивайте о его произведениях, жизни и влиянии на литературу._",
         reply_markup=get_main_keyboard(),
